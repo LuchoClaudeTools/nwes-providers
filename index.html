@@ -383,6 +383,54 @@
   .pip-independent { background:#4ade80; } .pip-pe { background:#fbbf24; }
   .pip-corporate { background:#f87171; } .pip-hospital { background:#60a5fa; }
 
+
+  /* ── Confirmed / Verified badge ── */
+  .verified-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#16a34a; margin-left:6px; vertical-align:middle; flex-shrink:0; }
+  .verified-chip { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:0.71rem; font-weight:600; letter-spacing:0.04em; }
+  .verified-chip.yes { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+  .verified-chip.no  { background:#f3f4f6; color:#6b7280; border:1px solid #d1d5db; }
+
+  /* ── Data-source status bar ── */
+  #syncBar { font-size:0.69rem; font-weight:500; padding:4px 28px; background:#f0f9ff; border-bottom:1px solid #bae6fd; color:#075985; display:flex; align-items:center; gap:8px; }
+  #syncBar.error { background:#fef2f2; border-color:#fca5a5; color:#991b1b; }
+  #syncBar.ok    { background:#f0fdf4; border-color:#86efac; color:#15803d; }
+  .sync-dot { width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
+
+  /* ── Loading overlay ── */
+  #loadingOverlay { position:fixed; inset:0; background:rgba(245,242,237,0.92); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9990; gap:14px; }
+  #loadingOverlay.hidden { display:none; }
+  .spin { width:36px; height:36px; border:4px solid rgba(26,127,142,0.2); border-top-color:var(--teal); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-msg { font-size:0.9rem; color:var(--text-mid); }
+
+  /* ── Settings panel in admin ── */
+  .settings-section { padding:20px; border-bottom:1px solid var(--border); }
+  .settings-section h3 { font-family:'Libre Baskerville',serif; font-size:0.95rem; color:var(--navy); margin:0 0 14px; }
+  .settings-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .settings-row input[type="password"], .settings-row input[type="text"] {
+    flex:1; min-width:220px; padding:8px 12px; border:1.5px solid var(--border); border-radius:7px;
+    font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--text-dark); outline:none;
+    transition:border-color 0.18s;
+  }
+  .settings-row input:focus { border-color:var(--teal); }
+  .btn-setting {
+    padding:8px 16px; background:var(--navy); color:white; border:none; border-radius:7px;
+    cursor:pointer; font-family:'DM Sans',sans-serif; font-size:0.84rem; font-weight:600;
+    transition:background 0.15s; white-space:nowrap;
+  }
+  .btn-setting:hover { background:var(--navy-light); }
+  .btn-setting.secondary { background:var(--teal); }
+  .btn-setting.secondary:hover { background:var(--teal-light); }
+  .btn-setting.danger { background:var(--danger); }
+  .btn-setting.danger:hover { background:#9b2020; }
+  .settings-status { font-size:0.78rem; color:var(--text-light); margin-top:4px; }
+  .settings-status.ok  { color:var(--success); }
+  .settings-status.err { color:var(--danger); }
+
+  /* ── Confirmed column in admin table ── */
+  .conf-yes { color:var(--success); font-weight:600; font-size:0.78rem; }
+  .conf-no  { color:var(--text-light); font-size:0.78rem; }
+
 </style>
 </head>
 <body>
@@ -438,6 +486,8 @@
   </div>
 </div>
 
+<div id="syncBar"><span class="sync-dot"></span><span id="syncMsg">Loading provider data from spreadsheet…</span></div>
+
 <div class="app">
   <div class="left-panel">
     <div class="left-inner">
@@ -473,90 +523,256 @@
 </div>
 
 <script>
-const USERS_KEY = "nwes_users_v1";
-const DB_KEY    = "nwes_db_v1";
+// ═══════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════
+const USERS_KEY   = 'nwes_users_v1';
+const SESSION_KEY = 'nwes_auth';
+const GH_OWNER    = 'LuchoClaudeTools';
+const GH_REPO     = 'nwes-providers';
+const GH_BRANCH   = 'main';
+const CSV_FILE    = 'providers.csv';
+const RAW_URL     = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${CSV_FILE}`;
+const API_URL     = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${CSV_FILE}`;
 
-const DB_DEFAULT = [
-  { id:1, displayName:"Multiple ODs on Staff", practice:"MyEyeDr.", address:"2200 W Henderson Rd, Suite A", city:"Columbus, OH 43220", phone:"(614) 273-2020", website:"locations.myeyedr.com/oh/columbus/2200-w-henderson-road", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"0.7 mi", distEast:"16.8 mi", doctors:["Multiple ODs on staff"], notes:"Closest optometry location to NW Eye Surgeons main office. PE-backed (Goldman Sachs Capital Partners), 900+ locations nationally. Co-management relationships may vary by individual OD. Accepts broad insurance." },
-  { id:2, displayName:"Travis, Beth A., O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"One of the closest practices to NWES main office (~1.5 mi). Independently owned LLC (Dr. Bosner, Sole Member). Established 1968. Full-scope therapeutic optometry; surgery co-management. Services include glaucoma diagnosis/treatment, cataract co-management, and vision therapy." },
-  { id:3, displayName:"Curtis, Julie, O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"Independently owned LLC. Established 1968. Full-scope therapeutic optometry including surgery co-management and glaucoma diagnosis/treatment." },
-  { id:4, displayName:"Bosner, Douglas, O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"Owner/Sole Member. Established 1968. Full-scope therapeutic optometry including surgery co-management and glaucoma diagnosis/treatment." },
-  { id:5, displayName:"Multiple ODs on Staff", practice:"Eye Designs — New Albany", address:"New Albany, OH", city:"", phone:"See website", website:"See business listing", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"14.8 mi", distEast:"1.5 mi", doctors:["Multiple ODs on staff"], notes:"Closest independent practice to the East (New Albany) office (~1.5 mi). Two-location practice (also Grandview). Services include LASIK and cataract co-management, specialty pediatric vision." },
-  { id:6, displayName:"Dye, Darrell Duke, O.D.", practice:"Riverside Eye Center", address:"3434 Riverside Dr", city:"Columbus, OH 43221", phone:"(614) 273-0393", website:"riversideeyectr.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"2.6 mi", distEast:"15.8 mi", doctors:["Dr. Darrell Duke Dye, O.D.","Dr. Scullion, O.D."], notes:"Top-rated in Columbus (5.0 ★, 947 reviews). Dr. Dye appointed to the Ohio Vision Professionals Board. Services include comprehensive eye exams, cataract evaluation, glaucoma screening, LASIK pre/post-op care, and pediatric eye care." },
-  { id:7, displayName:"Scullion, O.D.", practice:"Riverside Eye Center", address:"3434 Riverside Dr", city:"Columbus, OH 43221", phone:"(614) 273-0393", website:"riversideeyectr.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"2.6 mi", distEast:"15.8 mi", doctors:["Dr. Darrell Duke Dye, O.D.","Dr. Scullion, O.D."], notes:"Top-rated practice in Columbus (5.0 ★, 947 reviews). Services include cataract evaluation, glaucoma screening, and LASIK pre/post-op care." },
-  { id:8, displayName:"Njeru, Steve, O.D.", practice:"Visionworks", address:"1450 Olentangy River Rd", city:"Columbus, OH 43212", phone:"(380) 219-4306", website:"locations.visionworks.com", specialty:"Optometrist", ownership:"corporate", catComanage:"Limited", glaucTC:"Yes", distMain:"3.1 mi", distEast:"16.3 mi", doctors:["Dr. Steve Njeru, O.D."], notes:"Corporate retail chain (VSP-owned). Limited co-management orientation; primarily retail focus. Weekend and evening hours. Value pricing, broad insurance acceptance." },
-  { id:9, displayName:"Zigler, O.D.", practice:"Central Ohio EyeCare", address:"3130 Olentangy River Rd", city:"Columbus, OH 43202", phone:"(614) 262-2020", website:"centralohioeyecare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"3.5 mi", distEast:"15.2 mi", doctors:["Dr. Zigler, O.D.","Dr. Perry, O.D."], notes:"Long-established family practice (practicing since at least 1985). Rated 4.9 ★ (380 reviews). Multi-generational patient relationships. Services include cataract co-management and glaucoma testing." },
-  { id:10, displayName:"Perry, O.D.", practice:"Central Ohio EyeCare", address:"3130 Olentangy River Rd", city:"Columbus, OH 43202", phone:"(614) 262-2020", website:"centralohioeyecare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"3.5 mi", distEast:"15.2 mi", doctors:["Dr. Zigler, O.D.","Dr. Perry, O.D."], notes:"Long-established family practice. Rated 4.9 ★ (380 reviews). Services include cataract co-management and glaucoma testing." },
-  { id:11, displayName:"Brady, O.D.", practice:"Riverview Eye Associates (Clarkson Eyecare)", address:"3600 Olentangy River Rd, Building B", city:"Columbus, OH 43214", phone:"(614) 451-7244", website:"clarksoneyecare.com/locations/oh/columbus/riverview", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"3.8 mi", distEast:"14.8 mi", doctors:["Dr. Brady, O.D.","Multiple ODs on staff"], notes:"Formerly Riverview Eye Associates; now part of Clarkson Eyecare (PE-backed, 200+ locations). Open alternating Saturdays. Rated 4.8 ★ (89 reviews)." },
-  { id:12, displayName:"Diana, O.D.", practice:"Grandview Vision Center", address:"881 W 3rd Ave", city:"Columbus, OH 43212", phone:"(614) 291-9400", website:"grandviewvision.com", specialty:"Optometrist", ownership:"independent", catComanage:"Limited", glaucTC:"Yes", distMain:"4.1 mi", distEast:"15.6 mi", doctors:["Dr. Diana, O.D.","Multiple ODs on staff"], notes:"Locally owned practice in Grandview Heights. Rated 4.7 ★ (65 reviews). Cataract co-management not explicitly confirmed. Services include glaucoma screening, comprehensive eye health. Family eye care focus." },
-  { id:13, displayName:"Multiple ODs on Staff", practice:"Eye Designs — Grandview", address:"Grandview Heights, OH", city:"", phone:"See website", website:"See business listing", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"4.2 mi", distEast:"15.8 mi", doctors:["Multiple ODs on staff"], notes:"Two-location independent practice (also New Albany). Services include LASIK and cataract co-management, specialty pediatric vision, and designer eyewear." },
-  { id:14, displayName:"See Practice", practice:"North Star Vision Center at Olentangy", address:"4885 Olentangy River Rd", city:"Columbus, OH 43214", phone:"(614) 326-1830", website:"See NPI listing", specialty:"Optometrist", ownership:"independent", catComanage:"Limited", glaucTC:"Yes", distMain:"4.6 mi", distEast:"14.9 mi", doctors:["See practice"], notes:"Established north Columbus practice along the Olentangy River Road corridor. Cataract co-management not explicitly confirmed. Services include ocular disease management, disease monitoring, and contact lenses." },
-  { id:15, displayName:"Dollenmayer, O.D.", practice:"Columbus Eyecare Associates", address:"4775 Knightsbridge Blvd, Suite 102", city:"Columbus, OH 43214", phone:"(614) 459-0600", website:"columbuseyecareassociates.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"4.8 mi", distEast:"14.5 mi", doctors:["Dr. Dollenmayer, O.D.","Dr. Danker, O.D."], notes:"Long-standing practice serving Columbus, Worthington, Upper Arlington, and Dublin. Rated 4.7 ★. State-of-the-art diagnostic equipment. 50+ years combined experience. Services include glaucoma testing and cataract co-management." },
-  { id:16, displayName:"Danker, O.D.", practice:"Columbus Eyecare Associates", address:"4775 Knightsbridge Blvd, Suite 102", city:"Columbus, OH 43214", phone:"(614) 459-0600", website:"columbuseyecareassociates.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"4.8 mi", distEast:"14.5 mi", doctors:["Dr. Dollenmayer, O.D.","Dr. Danker, O.D."], notes:"Long-standing practice. Rated 4.7 ★. State-of-the-art diagnostic equipment. 50+ years combined experience. Services include glaucoma testing and cataract co-management." },
-  { id:17, displayName:"King-Smith, Nicholas, O.D.", practice:"Pinnacle Eyecare", address:"5144 Morse Rd, Suite 300", city:"Columbus, OH 43230", phone:"(614) 810-2020", website:"pinnacleeyecare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"9.2 mi", distEast:"5.1 mi", doctors:["Dr. Nicholas King-Smith, O.D. (Owner)"], notes:"Owner. Highly rated (5.0 ★, 639 reviews). Opened 2020. Strong medical/disease management emphasis. Services include glaucoma management, cataract evaluation, laser surgery consultations, dry eye treatment, and myopia control." },
-  { id:18, displayName:"Razzano, O.D.", practice:"Target Optical / Razzano Vision Care", address:"4199 Morse Crossing", city:"Columbus, OH 43219", phone:"(614) 476-6494", website:"local.targetoptical.com", specialty:"Optometrist", ownership:"corporate", catComanage:"Limited", glaucTC:"Yes", distMain:"9.8 mi", distEast:"5.4 mi", doctors:["Dr. Razzano, O.D.","Dr. Rachel Taylor, O.D."], notes:"Dr. Razzano noted as thorough with cancer history awareness and appropriate referrals. Individual ODs within Target Optical can provide strong referrals. Rated 4.9 ★ (376 reviews). Easton area — relevant to East office." },
-  { id:19, displayName:"Taylor, Rachel, O.D.", practice:"Target Optical / Razzano Vision Care", address:"4199 Morse Crossing", city:"Columbus, OH 43219", phone:"(614) 476-6494", website:"local.targetoptical.com", specialty:"Optometrist", ownership:"corporate", catComanage:"Limited", glaucTC:"Yes", distMain:"9.8 mi", distEast:"5.4 mi", doctors:["Dr. Razzano, O.D.","Dr. Rachel Taylor, O.D."], notes:"Individual ODs within Target Optical can provide strong referrals. Rated 4.9 ★ (376 reviews). Easton area — relevant to East office." },
-  { id:20, displayName:"Bennett, Kurt J., O.D., F.S.L.S.", practice:"Columbus Eyeworks", address:"25 W Hubbard Ave", city:"Columbus, OH 43215", phone:"(614) 421-2020", website:"columbuseyeworks.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"5.8 mi", distEast:"14.9 mi", doctors:["Dr. Kurt J. Bennett, O.D., F.S.L.S."], notes:"Established 2000 in Short North. Fellow of the Scleral Lens Education Society (F.S.L.S.). Explicitly highlights cataract and glaucoma co-management on website. Services include cataract co-management (pre- and post-op), glaucoma management, scleral and specialty contact lenses, dry eye, and emergency eye care." },
-  { id:21, displayName:"Larsen, O.D.", practice:"LensCrafters / Grace Vision", address:"4012 Easton Station", city:"Columbus, OH 43219", phone:"(614) 476-2586", website:"local.lenscrafters.com", specialty:"Optometrist", ownership:"corporate", catComanage:"Limited", glaucTC:"Yes", distMain:"9.6 mi", distEast:"5.8 mi", doctors:["Dr. Larsen, O.D.","Multiple ODs on staff"], notes:"LensCrafters corporate retail (EssilorLuxottica). Individual ODs may co-manage; Dr. Larsen noted as excellent. Rated 4.8 ★. Easton area — relevant to East office." },
-  { id:22, displayName:"Multiple ODs on Staff", practice:"Clarkson Eyecare — Downtown Columbus", address:"Downtown Columbus, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/downtown-columbus", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"6.1 mi", distEast:"15.4 mi", doctors:["Multiple ODs on staff"], notes:"PE-backed (200+ location, 13-state network). Services include glaucoma and disease management. Multi-location accessibility; new patient availability." },
-  { id:23, displayName:"Multiple ODs on Staff", practice:"Clarkson Eyecare — Town Street", address:"Town Street, Columbus, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/town-street", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"6.5 mi", distEast:"15.8 mi", doctors:["Multiple ODs on staff"], notes:"PE-backed. Open alternating Saturdays. Multi-location accessibility." },
-  { id:24, displayName:"Danford, Valerie, O.D.", practice:"Vision Professionals", address:"730 Mt Airyshire Blvd, Suite A", city:"Columbus, OH 43235", phone:"(614) 880-2020", website:"visionprofessionals.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"7.2 mi", distEast:"17.1 mi", doctors:["Dr. Valerie Danford, O.D.","Dr. Menner, O.D.","Multiple ODs on staff"], notes:"Explicitly offers cataract co-management and glaucoma testing per website. Multiple Columbus-area locations. Rated 4.9 ★ (417 reviews). Services include cataract surgery co-management, glaucoma testing and treatment, macular degeneration management, and diabetic retinopathy monitoring." },
-  { id:25, displayName:"Menner, O.D.", practice:"Vision Professionals", address:"730 Mt Airyshire Blvd, Suite A", city:"Columbus, OH 43235", phone:"(614) 880-2020", website:"visionprofessionals.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"7.2 mi", distEast:"17.1 mi", doctors:["Dr. Valerie Danford, O.D.","Dr. Menner, O.D.","Multiple ODs on staff"], notes:"Explicitly offers cataract co-management and glaucoma testing per website. Multiple Columbus-area locations. Rated 4.9 ★ (417 reviews)." },
-  { id:26, displayName:"Mubarak, O.D.", practice:"Divine Family Eyecare", address:"2696 Crossroads Plaza Dr", city:"Columbus, OH 43219", phone:"(614) 471-9005", website:"divinefamilyeyecare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Limited", glaucTC:"Yes", distMain:"8.5 mi", distEast:"7.3 mi", doctors:["Dr. Mubarak, O.D."], notes:"Community-oriented practice. Accepts Medicaid. Rated 4.4 ★. Serves east Columbus / Crossroads area. Cataract co-management not explicitly confirmed. Services include glaucoma screening, disease management, and pediatric eye care." },
-  { id:27, displayName:"Rader, Michael, O.D.", practice:"Clarkson Eyecare — Reynoldsburg", address:"Reynoldsburg, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/reynoldsburg", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"14.2 mi", distEast:"8.1 mi", doctors:["Dr. Michael Rader, O.D.","Dr. Kelly Jo Makley, O.D.","Dr. Jenny Tran, O.D."], notes:"PE-backed. East Columbus location — closer to New Albany office. Open alternating Saturdays." },
-  { id:28, displayName:"Makley, Kelly Jo, O.D.", practice:"Clarkson Eyecare — Reynoldsburg", address:"Reynoldsburg, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/reynoldsburg", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"14.2 mi", distEast:"8.1 mi", doctors:["Dr. Michael Rader, O.D.","Dr. Kelly Jo Makley, O.D.","Dr. Jenny Tran, O.D."], notes:"PE-backed. East Columbus location — closer to New Albany office. Open alternating Saturdays." },
-  { id:29, displayName:"Tran, Jenny, O.D.", practice:"Clarkson Eyecare — Reynoldsburg", address:"Reynoldsburg, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/reynoldsburg", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"14.2 mi", distEast:"8.1 mi", doctors:["Dr. Michael Rader, O.D.","Dr. Kelly Jo Makley, O.D.","Dr. Jenny Tran, O.D."], notes:"Also noted at AEG Vision / Hilliard and Canal Winchester locations. PE-backed. East Columbus location." },
-  { id:30, displayName:"Hutchinson, O.D./M.D.", practice:"Complete EyeCare West", address:"5141 W Broad St, Suite 100", city:"Columbus, OH 43228", phone:"(614) 878-1571", website:"compeyewest.com", specialty:"Comprehensive Ophthalmologist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"8.9 mi", distEast:"20.1 mi", doctors:["Dr. Hutchinson, O.D./M.D.","Dr. Elizabeth Cockerill, O.D. (Clinical Director)"], notes:"Ophthalmologist on staff performing minor procedures. Rated 4.9 ★ (701 reviews). Services include glaucoma treatment, dry eye disease management, cataract co-management, stye removal, and ocular surgery." },
-  { id:31, displayName:"Cockerill, Elizabeth, O.D.", practice:"Complete EyeCare West", address:"5141 W Broad St, Suite 100", city:"Columbus, OH 43228", phone:"(614) 878-1571", website:"compeyewest.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"8.9 mi", distEast:"20.1 mi", doctors:["Dr. Hutchinson, O.D./M.D.","Dr. Elizabeth Cockerill, O.D. (Clinical Director)"], notes:"Clinical Director. 2009 Ohio OA Young Optometrist of the Year; former clinical director at TLC Laser Eye Center. Rated 4.9 ★ (701 reviews)." },
-  { id:32, displayName:"Hirt, Stephen, O.D. (Pickerington)", practice:"Columbus Vision Associates — Pickerington", address:"Pickerington, OH (east)", city:"", phone:"See website", website:"cvavisioncare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"18.5 mi", distEast:"9.2 mi", doctors:["Dr. Stephen Hirt, O.D."], notes:"Two-location independent practice (also Westerville). Strong diagnostic and disease management focus. Services include retinal photography, visual field testing, glaucoma diagnosis/monitoring, cataract evaluation, and macular degeneration management." },
-  { id:33, displayName:"Multiple ODs on Staff", practice:"Clarkson Eyecare — South Columbus", address:"South Columbus, OH", city:"", phone:"See website", website:"clarksoneyecare.com/locations/oh/columbus/south-columbus", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"9.5 mi", distEast:"16.3 mi", doctors:["Multiple ODs on staff"], notes:"PE-backed. Open alternating Thursdays and Saturdays." },
-  { id:34, displayName:"Suh, Steven, M.D.", practice:"Comprehensive EyeCare of Central Ohio (CECCO)", address:"Westerville, OH", city:"", phone:"(614) 890-5692", website:"compeyecare.com", specialty:"Comprehensive Ophthalmologist", ownership:"hospital", catComanage:"Yes", glaucTC:"Yes", distMain:"13.9 mi", distEast:"9.8 mi", doctors:["Dr. Steven Suh, M.D.","Dr. Beckman, M.D.","Dr. Julia Geldis, O.D."], notes:"Affiliated with Grant Medical Center, Mount Carmel St. Ann's, Mount Carmel East, The Eye Center of Columbus, and Columbus Eye Surgery Center. Performs in-house SLT laser for glaucoma. Not a traditional referral source, but may refer for subspecialty care." },
-  { id:35, displayName:"Beckman, M.D.", practice:"Comprehensive EyeCare of Central Ohio (CECCO)", address:"Westerville, OH", city:"", phone:"(614) 890-5692", website:"compeyecare.com", specialty:"Comprehensive Ophthalmologist", ownership:"hospital", catComanage:"Yes", glaucTC:"Yes", distMain:"13.9 mi", distEast:"9.8 mi", doctors:["Dr. Steven Suh, M.D.","Dr. Beckman, M.D.","Dr. Julia Geldis, O.D."], notes:"Affiliated with Grant Medical Center and Mount Carmel hospitals. Performs cataract surgery and glaucoma treatment in-house. May refer for subspecialty care." },
-  { id:36, displayName:"Geldis, Julia, O.D.", practice:"Comprehensive EyeCare of Central Ohio (CECCO)", address:"Westerville, OH", city:"", phone:"(614) 890-5692", website:"compeyecare.com", specialty:"Optometrist", ownership:"hospital", catComanage:"Yes", glaucTC:"Yes", distMain:"13.9 mi", distEast:"9.8 mi", doctors:["Dr. Steven Suh, M.D.","Dr. Beckman, M.D.","Dr. Julia Geldis, O.D."], notes:"Integrated optometry within a hospital-affiliated ophthalmology practice." },
-  { id:37, displayName:"Hirt, Stephen, O.D. (Westerville)", practice:"Columbus Vision Associates — Westerville", address:"Westerville, OH (Polaris area/north)", city:"", phone:"See website", website:"cvavisioncare.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"14.5 mi", distEast:"10.3 mi", doctors:["Dr. Stephen Hirt, O.D."], notes:"Two-location independent practice (also Pickerington). Strong diagnostic and disease management focus. Services include retinal photography, visual field testing, glaucoma diagnosis/monitoring, cataract evaluation, and macular degeneration management." },
-  { id:38, displayName:"Woeste, Kathryn, O.D.", practice:"Professional Vision Services / AEG Vision — Hilliard", address:"5555 Hilliard Rome Office Park", city:"Hilliard, OH 43026", phone:"(614) 777-1111", website:"pvseyecare-hilliard.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"11.3 mi", distEast:"20.8 mi", doctors:["Dr. Kathryn Woeste, O.D.","Dr. James Pipo, O.D.","Dr. Jenny Tran, O.D."], notes:"Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed, Riata Capital Group). Formerly Professional Vision Services. Explicitly advertises cataract and glaucoma co-management. Services include orthokeratology and senior vision care." },
-  { id:39, displayName:"Pipo, James, O.D.", practice:"Professional Vision Services / AEG Vision — Hilliard", address:"5555 Hilliard Rome Office Park", city:"Hilliard, OH 43026", phone:"(614) 777-1111", website:"pvseyecare-hilliard.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"11.3 mi", distEast:"20.8 mi", doctors:["Dr. Kathryn Woeste, O.D.","Dr. James Pipo, O.D.","Dr. Jenny Tran, O.D."], notes:"Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed). Explicitly advertises cataract and glaucoma co-management." },
-  { id:40, displayName:"Multiple ODs on Staff", practice:"Columbus Eye Docs", address:"Lewis Center, OH", city:"(also Westerville, Hilliard, Marion)", phone:"See website", website:"columbuseyedocs.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"16.3 mi", distEast:"11.5 mi", doctors:["Multiple ODs on staff (multi-generational family practice)"], notes:"Multi-generational family practice with 21+ year history and multiple Columbus-area locations. Emphasizes diagnostic technology and disease management with appropriate referrals. Services include glaucoma diagnosis, cataract evaluation, macular degeneration, and diabetic retinopathy monitoring." },
-  { id:41, displayName:"Manning, Steven, O.D., M.S.", practice:"Winchester Vision Care / AEG Vision — Canal Winchester", address:"6472 Winchester Blvd", city:"Canal Winchester, OH 43110", phone:"(614) 837-9595", website:"winchestervisioncare.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"16.8 mi", distEast:"12.5 mi", doctors:["Dr. Steven Manning, O.D., M.S.","Dr. Bradley Ortisi, O.D.","Dr. Elizabeth Day, O.D., M.S.","Dr. Jeffrey Myers, O.D., F.A.A.O., F.N.A.P.","Dr. Jenny Tran, O.D."], notes:"Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed). Explicitly offers cataract co-management. Services include cataract co-management, glaucoma screening and management, LASIK co-management, macular degeneration, and diabetic retinopathy monitoring." },
-  { id:42, displayName:"Ortisi, Bradley, O.D.", practice:"Winchester Vision Care / AEG Vision — Canal Winchester", address:"6472 Winchester Blvd", city:"Canal Winchester, OH 43110", phone:"(614) 837-9595", website:"winchestervisioncare.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"16.8 mi", distEast:"12.5 mi", doctors:["Dr. Steven Manning, O.D., M.S.","Dr. Bradley Ortisi, O.D.","Dr. Elizabeth Day, O.D., M.S.","Dr. Jeffrey Myers, O.D., F.A.A.O., F.N.A.P.","Dr. Jenny Tran, O.D."], notes:"Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed). Services include cataract and glaucoma co-management." },
-  { id:43, displayName:"Day, Elizabeth, O.D., M.S.", practice:"Winchester Vision Care / AEG Vision — Canal Winchester", address:"6472 Winchester Blvd", city:"Canal Winchester, OH 43110", phone:"(614) 837-9595", website:"winchestervisioncare.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"16.8 mi", distEast:"12.5 mi", doctors:["Dr. Steven Manning, O.D., M.S.","Dr. Bradley Ortisi, O.D.","Dr. Elizabeth Day, O.D., M.S.","Dr. Jeffrey Myers, O.D., F.A.A.O., F.N.A.P.","Dr. Jenny Tran, O.D."], notes:"Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed). Services include cataract and glaucoma co-management." },
-  { id:44, displayName:"Myers, Jeffrey, O.D., F.A.A.O., F.N.A.P.", practice:"Winchester Vision Care / AEG Vision — Canal Winchester", address:"6472 Winchester Blvd", city:"Canal Winchester, OH 43110", phone:"(614) 837-9595", website:"winchestervisioncare.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"16.8 mi", distEast:"12.5 mi", doctors:["Dr. Steven Manning, O.D., M.S.","Dr. Bradley Ortisi, O.D.","Dr. Elizabeth Day, O.D., M.S.","Dr. Jeffrey Myers, O.D., F.A.A.O., F.N.A.P.","Dr. Jenny Tran, O.D."], notes:"Fellow of the American Academy of Optometry (F.A.A.O.) and Fellow of the National Academy of Practice (F.N.A.P.) — highly credentialed. Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed)." }
-];
+// ═══════════════════════════════════════════════════════════════════════════
+// CSV PARSER  (RFC-4180, handles quoted fields with commas, newlines, "")
+// ═══════════════════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const input = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trimEnd();
 
-DB_DEFAULT.sort((a, b) => {
-  const sortKey = s => s.replace(/^(Multiple|See )/, 'ZZZ_');
-  return sortKey(a.displayName).localeCompare(sortKey(b.displayName));
-});
+  function parseRows(str) {
+    const rows = []; let row = []; let i = 0; const n = str.length;
+    while (i < n) {
+      if (str[i] === '"') {
+        i++; let f = '';
+        while (i < n) {
+          if (str[i] === '"') {
+            if (str[i+1] === '"') { f += '"'; i += 2; }
+            else { i++; break; }
+          } else { f += str[i++]; }
+        }
+        row.push(f);
+        if (i < n && str[i] === ',') i++;
+        else if (i < n && str[i] === '\n') { rows.push(row); row = []; i++; }
+      } else {
+        let f = '';
+        while (i < n && str[i] !== ',' && str[i] !== '\n') f += str[i++];
+        row.push(f);
+        if (i < n && str[i] === ',') i++;
+        else if (i < n && str[i] === '\n') { rows.push(row); row = []; i++; }
+      }
+    }
+    if (row.length > 0 && !(row.length === 1 && row[0] === '')) rows.push(row);
+    return rows;
+  }
 
-const ownershipConfig = {
-  independent: { label: "Independent Practice", cls: "ow-independent", color: "#4ade80" },
-  pe:          { label: "Private Equity–Backed", cls: "ow-pe", color: "#fbbf24" },
-  corporate:   { label: "Corporate / Retail Chain", cls: "ow-corporate", color: "#f87171" },
-  hospital:    { label: "Hospital System", cls: "ow-hospital", color: "#60a5fa" }
-};
+  const rows = parseRows(input);
+  if (!rows.length) return [];
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+  const col = {};
+  headers.forEach((h, i) => col[h] = i);
 
-let selectedId = null;
+  const get = (cells, name, fallback='') => {
+    const idx = col[name.toLowerCase()];
+    return idx !== undefined ? (cells[idx] || fallback) : fallback;
+  };
 
-function filterDoctors() {
-  const q = document.getElementById('docSearch').value.toLowerCase();
-  renderList(loadDB().filter(d => d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)));
+  const providers = [];
+  for (let r = 1; r < rows.length; r++) {
+    const c = rows[r];
+    if (c.length < 2) continue;
+    const doctorsRaw = get(c,'doctors','');
+    providers.push({
+      id:          parseInt(get(c,'id')) || r,
+      displayName: get(c,'displayName') || get(c,'displayname'),
+      practice:    get(c,'practice'),
+      address:     get(c,'address'),
+      city:        get(c,'city'),
+      phone:       get(c,'phone'),
+      website:     get(c,'website'),
+      specialty:   get(c,'specialty'),
+      ownership:   get(c,'ownership'),
+      catComanage: get(c,'catComanage') || get(c,'catcomanage'),
+      glaucTC:     get(c,'glaucTC') || get(c,'glauctic'),
+      distMain:    get(c,'distMain') || get(c,'distmain'),
+      distEast:    get(c,'distEast') || get(c,'disteast'),
+      doctors:     doctorsRaw ? doctorsRaw.split('|').map(s=>s.trim()).filter(Boolean) : [],
+      notes:       get(c,'notes'),
+      confirmed:   get(c,'confirmed','false').trim().toLowerCase() === 'true',
+    });
+  }
+  return providers;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// CSV SERIALIZER
+// ═══════════════════════════════════════════════════════════════════════════
+const CSV_HEADERS = ['id','displayName','practice','address','city','phone','website',
+  'specialty','ownership','catComanage','glaucTC','distMain','distEast','doctors','notes','confirmed'];
+
+function csvField(v) {
+  const s = String(v == null ? '' : v);
+  if (/[,"\n\r]/.test(s) || s !== s.trim()) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function serializeCSV(providers) {
+  const lines = [CSV_HEADERS.join(',')];
+  for (const p of providers) {
+    const doctorsStr = Array.isArray(p.doctors) ? p.doctors.join('|') : (p.doctors||'');
+    lines.push([p.id, p.displayName, p.practice, p.address, p.city, p.phone, p.website,
+      p.specialty, p.ownership, p.catComanage, p.glaucTC, p.distMain, p.distEast,
+      doctorsStr, p.notes, p.confirmed ? 'true' : 'false'].map(csvField).join(','));
+  }
+  return lines.join('\n') + '\n';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GITHUB API
+// ═══════════════════════════════════════════════════════════════════════════
+function getGHToken() { return localStorage.getItem('nwes_gh_token') || ''; }
+
+async function fetchCSVFromGitHub() {
+  const url = RAW_URL + '?t=' + Date.now();
+  const resp = await fetch(url, { cache: 'no-store' });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching CSV`);
+  return resp.text();
+}
+
+async function fetchCSVViaAPI() {
+  const resp = await fetch(API_URL + `?ref=${GH_BRANCH}&t=` + Date.now(), {
+    headers: { 'Accept': 'application/vnd.github+json' }
+  });
+  if (!resp.ok) throw new Error(`GitHub API ${resp.status}`);
+  const data = await resp.json();
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(data.content.replace(/\n/g,'')), c => c.charCodeAt(0))
+  );
+}
+
+async function commitCSVToGitHub(csvText, msg) {
+  const token = getGHToken();
+  if (!token) throw new Error('No GitHub token set. Enter it in Admin → Settings & Sync.');
+  const hdrs = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+  };
+  // Get current SHA (needed to update an existing file)
+  let sha = null;
+  const getR = await fetch(API_URL + `?ref=${GH_BRANCH}`, { headers: hdrs });
+  if (getR.ok) { sha = (await getR.json()).sha; }
+  else if (getR.status !== 404) throw new Error(`GitHub GET failed: ${getR.status}`);
+
+  const b64 = btoa(Array.from(new TextEncoder().encode(csvText)).map(b=>String.fromCharCode(b)).join(''));
+  const body = { message: msg || `Update providers.csv — ${new Date().toLocaleString()}`, content: b64, branch: GH_BRANCH };
+  if (sha) body.sha = sha;
+
+  const putR = await fetch(API_URL, { method:'PUT', headers: hdrs, body: JSON.stringify(body) });
+  if (!putR.ok) {
+    const err = await putR.text();
+    throw new Error(`GitHub PUT failed (${putR.status}): ${err}`);
+  }
+  return (await putR.json()).commit.sha;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DB LAYER
+// ═══════════════════════════════════════════════════════════════════════════
+let _db = [];
+function loadDB()       { return _db; }
+function saveDB(arr)    { _db = arr; try { localStorage.setItem('nwes_db_v1', JSON.stringify(arr)); } catch(e){} }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// USERS LAYER
+// ═══════════════════════════════════════════════════════════════════════════
+const USERS_DEFAULT = [
+  { user: "admin",      pass: "NWEye2024!",  name: "Admin" },
+  { user: "frontdesk",  pass: "Columbus24",  name: "Front Desk" },
+  { user: "scheduling", pass: "Referral24",  name: "Scheduling" },
+];
+function loadUsers() {
+  const s = localStorage.getItem(USERS_KEY);
+  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(USERS_DEFAULT));
+}
+function saveUsers(arr) { localStorage.setItem(USERS_KEY, JSON.stringify(arr)); }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNC STATUS UI
+// ═══════════════════════════════════════════════════════════════════════════
+function setSyncBar(msg, state='') {
+  const bar = document.getElementById('syncBar');
+  const msgEl = document.getElementById('syncMsg');
+  if (!bar || !msgEl) return;
+  bar.className = state;
+  msgEl.textContent = msg;
+}
+function showLoadingOverlay(msg) {
+  const el = document.getElementById('loadingOverlay');
+  const m  = document.getElementById('loadingMsg');
+  if (el) el.classList.remove('hidden');
+  if (m)  m.textContent = msg || 'Loading…';
+}
+function hideLoadingOverlay() {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.classList.add('hidden');
+}
+function setSettingsStatus(msg, cls) {
+  const el = document.getElementById('ghSyncStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'settings-status ' + (cls||'');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OWNERSHIP CONFIG
+// ═══════════════════════════════════════════════════════════════════════════
+const ownershipConfig = {
+  independent: { label:"Independent Practice",    cls:"ow-independent", color:"#4ade80" },
+  pe:          { label:"Private Equity–Backed",   cls:"ow-pe",          color:"#fbbf24" },
+  corporate:   { label:"Corporate / Retail Chain", cls:"ow-corporate",  color:"#f87171" },
+  hospital:    { label:"Hospital System",          cls:"ow-hospital",   color:"#60a5fa" }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER — Doctor List (sidebar)
+// ═══════════════════════════════════════════════════════════════════════════
+let selectedId = null;
+
 function renderList(items) {
-  const list = document.getElementById('doctorList');
+  const list  = document.getElementById('doctorList');
   const count = document.getElementById('docCount');
   list.innerHTML = '';
-  if (!items.length) { list.innerHTML = '<div class="no-results">No providers found</div>'; count.textContent = ''; return; }
+  if (!items.length) {
+    list.innerHTML = '<div class="no-results">No providers found</div>';
+    count.textContent = '';
+    return;
+  }
   items.forEach(d => {
     const div = document.createElement('div');
     div.className = 'doctor-item' + (d.id === selectedId ? ' active' : '');
-    div.innerHTML = `<div class="di-name">${d.displayName}</div><div class="di-practice">${d.practice}</div>`;
+    const verifiedDot = d.confirmed
+      ? '<span class="verified-dot" title="Human Verified"></span>'
+      : '';
+    div.innerHTML = `<div class="di-name">${d.displayName}${verifiedDot}</div><div class="di-practice">${d.practice}</div>`;
     div.onclick = () => selectDoctor(d.id);
     list.appendChild(div);
   });
-  count.textContent = `${items.length} provider${items.length !== 1 ? 's' : ''}`;
+  count.textContent = `${items.length} provider${items.length!==1?'s':''}`;
 }
 
+function filterDoctors() {
+  const q = document.getElementById('docSearch').value.toLowerCase();
+  renderList(loadDB().filter(d =>
+    d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)
+  ));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDER — Doctor Card (detail pane)
+// ═══════════════════════════════════════════════════════════════════════════
 function selectDoctor(id) {
   selectedId = id;
   filterDoctors();
@@ -570,9 +786,9 @@ function selectDoctor(id) {
 function renderCard(d) {
   const ow = ownershipConfig[d.ownership] || ownershipConfig.independent;
   const specCls = { Optometrist:'optometrist','Comprehensive Ophthalmologist':'comprehensive','Retina Specialist':'retina','Primary Care':'primary' }[d.specialty] || 'optometrist';
-  const cmCfg = v => v==='Yes' ? {cls:'yes',icon:'✓',label:'Yes'} : v==='No' ? {cls:'no',icon:'✗',label:'No'} : {cls:'maybe',icon:'~',label:'Limited / Varies'};
+  const cmCfg = v => v==='Yes'?{cls:'yes',icon:'✓',label:'Yes'}:v==='No'?{cls:'no',icon:'✗',label:'No'}:{cls:'maybe',icon:'~',label:'Limited / Varies'};
   const cat = cmCfg(d.catComanage), gl = cmCfg(d.glaucTC);
-  const chips = d.doctors.map(doc => `<span class="doc-chip">${doc}</span>`).join('');
+  const chips = (d.doctors||[]).map(doc => `<span class="doc-chip">${doc}</span>`).join('');
   const websiteHtml = d.website && !d.website.startsWith('See')
     ? `<a class="website" href="https://${d.website}" target="_blank">${d.website}</a>`
     : `<span class="info-value muted">${d.website||'—'}</span>`;
@@ -581,10 +797,17 @@ function renderCard(d) {
     : `<span class="info-value muted">${d.phone||'—'}</span>`;
   const addr = [d.address, d.city].filter(Boolean).join(', ');
 
+  const verifiedBadge = d.confirmed
+    ? `<span class="verified-chip yes">&#10003; Human Verified</span>`
+    : `<span class="verified-chip no">&#9675; Not Yet Verified</span>`;
+
   document.getElementById('detailArea').innerHTML = `
     <div class="doctor-card">
       <div class="card-header">
-        <div class="doctor-name">Dr. ${d.displayName}</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div class="doctor-name">Dr. ${d.displayName}</div>
+          ${verifiedBadge}
+        </div>
         <div><span class="spec-tag ${specCls}">${d.specialty}</span></div>
         <div class="ownership-badge ${ow.cls}"><span class="ow-dot"></span>${ow.label}</div>
       </div>
@@ -608,8 +831,8 @@ function renderCard(d) {
         <div class="info-block" style="grid-column:1/-1">
           <div class="info-label">Distance from NWES</div>
           <div class="dist-row">
-            <span class="dist-badge">Main Office (North Bank Dr): ${d.distMain}</span>
-            <span class="dist-badge">East Office (New Albany): ${d.distEast}</span>
+            <span class="dist-badge">Main Office (North Bank Dr): ${d.distMain||'—'}</span>
+            <span class="dist-badge">East Office (New Albany): ${d.distEast||'—'}</span>
           </div>
         </div>
       </div>
@@ -623,26 +846,29 @@ function renderCard(d) {
           <div><div class="cm-label">Glaucoma Team Care</div><div class="cm-value">${gl.label}</div></div>
         </div>
       </div>
-      <div class="doctors-section">
-        <div class="doctors-title">All Providers at This Practice</div>
-        <div class="doctors-chips">${chips}</div>
-      </div>
+      ${chips ? `<div class="doctors-section"><div class="doctors-title">All Providers at This Practice</div><div class="doctors-chips">${chips}</div></div>` : ''}
       ${d.notes ? `<div class="notes-section"><div class="notes-title">Practice Notes</div><div class="notes-text">${d.notes}</div></div>` : ''}
     </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PRACTICE SEARCH
+// ═══════════════════════════════════════════════════════════════════════════
 function searchByPractice() {
   const q = document.getElementById('practiceSearch').value.toLowerCase().trim();
   const resultsDiv = document.getElementById('practiceResults');
   if (!q) { resultsDiv.innerHTML = ''; return; }
   const matches = loadDB().filter(d => d.practice.toLowerCase().includes(q));
-  if (!matches.length) { resultsDiv.innerHTML = `<div class="practice-results"><div class="pr-header">No practices found matching "${q}"</div></div>`; return; }
-  const practiceMap = {};
-  matches.forEach(d => { if (!practiceMap[d.practice]) practiceMap[d.practice] = []; practiceMap[d.practice].push(d); });
-  let html = `<div class="practice-results"><div class="pr-header">Found ${matches.length} provider${matches.length!==1?'s':''} across ${Object.keys(practiceMap).length} practice${Object.keys(practiceMap).length!==1?'s':''}</div>`;
-  Object.entries(practiceMap).forEach(([practice, docs]) => {
+  if (!matches.length) {
+    resultsDiv.innerHTML = `<div class="practice-results"><div class="pr-header">No practices found</div></div>`;
+    return;
+  }
+  const pm = {};
+  matches.forEach(d => { if (!pm[d.practice]) pm[d.practice]=[]; pm[d.practice].push(d); });
+  let html = `<div class="practice-results"><div class="pr-header">Found ${matches.length} provider${matches.length!==1?'s':''} across ${Object.keys(pm).length} practice${Object.keys(pm).length!==1?'s':''}</div>`;
+  Object.entries(pm).forEach(([practice, docs]) => {
     docs.forEach(d => {
-      const ow = ownershipConfig[d.ownership];
+      const ow = ownershipConfig[d.ownership] || ownershipConfig.independent;
       html += `<div class="pr-item" onclick="selectFromPractice(${d.id})"><div class="pr-dot" style="background:${ow.color}"></div><div><div class="pr-name">${d.displayName}</div><div class="pr-spec">${practice} · ${d.specialty}</div></div></div>`;
     });
   });
@@ -656,20 +882,10 @@ function selectFromPractice(id) {
   document.getElementById('detailArea').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
-renderList(loadDB());
-
-// ── Authentication ──────────────────────────────────────────────
-//
-// Add, remove, or edit users below.
-// Format: { user: "username", pass: "password", name: "Display Name" }
-//
-const USERS_DEFAULT = [
-  { user: "admin",      pass: "NWEye2024!",   name: "Admin" },
-  { user: "frontdesk",  pass: "Columbus24",   name: "Front Desk" },
-  { user: "scheduling", pass: "Referral24",   name: "Scheduling" },
-];
-
-const SESSION_KEY = "nwes_auth";
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════════════════
+let currentUser = null;
 
 function checkSession() {
   const stored = sessionStorage.getItem(SESSION_KEY);
@@ -678,16 +894,15 @@ function checkSession() {
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('userGreeting').textContent = data.name;
     currentUser = data;
-    const adminBtn = document.getElementById('adminBtn');
-    if (data.isAdmin) adminBtn.style.display = '';
-    else adminBtn.style.display = 'none';
+    const btn = document.getElementById('adminBtn');
+    if (btn) btn.style.display = data.isAdmin ? '' : 'none';
   }
 }
 
 function attemptLogin(e) {
   e.preventDefault();
-  const user = document.getElementById('loginUser').value.trim().toLowerCase();
-  const pass = document.getElementById('loginPass').value;
+  const user  = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
   const users = loadUsers();
   const match = users.find(u => u.user.toLowerCase() === user && u.pass === pass);
   if (match) {
@@ -697,8 +912,8 @@ function attemptLogin(e) {
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('userGreeting').textContent = match.name;
     document.getElementById('loginError').textContent = '';
-    const adminBtn = document.getElementById('adminBtn');
-    if (isAdmin) adminBtn.style.display = ''; else adminBtn.style.display = 'none';
+    const btn = document.getElementById('adminBtn');
+    if (btn) btn.style.display = isAdmin ? '' : 'none';
   } else {
     document.getElementById('loginError').textContent = 'Incorrect username or password.';
     document.getElementById('loginPass').value = '';
@@ -711,108 +926,95 @@ function signOut() {
   currentUser = null;
   document.getElementById('loginOverlay').classList.remove('hidden');
   document.getElementById('adminPage').classList.remove('visible');
-  document.getElementById('adminBtn').style.display = 'none';
-  document.getElementById('loginUser').value = '';
-  document.getElementById('loginPass').value = '';
-  document.getElementById('loginError').textContent = '';
+  const btn = document.getElementById('adminBtn');
+  if (btn) btn.style.display = 'none';
+  document.getElementById('loginUser').value  = '';
+  document.getElementById('loginPass').value  = '';
+  document.getElementById('loginError').textContent  = '';
   document.getElementById('userGreeting').textContent = '';
   document.getElementById('loginUser').focus();
 }
 
-// ── Admin ─────────────────────────────────────────────────────
-// USERS_KEY and DB_KEY are defined at top of script
-
-function loadUsers() {
-  const s = localStorage.getItem(USERS_KEY);
-  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(USERS_DEFAULT));
-}
-function saveUsers(arr) { localStorage.setItem(USERS_KEY, JSON.stringify(arr)); }
-function loadDB() {
-  const s = localStorage.getItem(DB_KEY);
-  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DB_DEFAULT));
-}
-function saveDB(arr) { localStorage.setItem(DB_KEY, JSON.stringify(arr)); }
-
-let currentUser = null;
-
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — Navigation & Tabs
+// ═══════════════════════════════════════════════════════════════════════════
 function goToAdmin() {
   document.getElementById('adminPage').classList.add('visible');
   renderUsersTable();
   renderProvidersTable();
+  // Pre-fill token status
+  const tok = getGHToken();
+  const tokEl = document.getElementById('ghTokenInput');
+  if (tokEl) tokEl.value = tok ? '••••••••••••••••' : '';
+  const statEl = document.getElementById('ghTokenStatus');
+  if (statEl) statEl.textContent = tok ? 'GitHub token is saved in this browser.' : 'No token saved yet.';
+  if (statEl) statEl.className = 'settings-status ' + (tok ? 'ok' : '');
 }
 function goToMain() {
   document.getElementById('adminPage').classList.remove('visible');
 }
-
 function switchTab(tab) {
-  document.querySelectorAll('.admin-tab').forEach((el,i) => el.classList.toggle('active', ['users','providers'][i] === tab));
+  const tabs = ['users','providers','settings'];
+  document.querySelectorAll('.admin-tab').forEach((el,i) => el.classList.toggle('active', tabs[i]===tab));
   document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + tab).classList.add('active');
 }
 
-// ── Users table ──
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — Users Table
+// ═══════════════════════════════════════════════════════════════════════════
 function renderUsersTable() {
   const q = document.getElementById('userSearch').value.toLowerCase();
   const users = loadUsers();
-  const filtered = users.filter(u =>
-    u.user.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
-  );
+  const filtered = users.filter(u => u.user.toLowerCase().includes(q) || u.name.toLowerCase().includes(q));
   const tbody = document.getElementById('userTableBody');
   tbody.innerHTML = filtered.map((u, fi) => {
     const ri = users.indexOf(u);
     const isAdmin = u.user.toLowerCase() === 'admin';
     return `<tr>
       <td style="color:var(--text-light);font-size:0.78rem">${fi+1}</td>
-      <td><strong>${esc(u.user)}</strong>${isAdmin ? ' <span style="font-size:0.67rem;color:var(--gold);background:rgba(200,151,58,0.12);border:1px solid rgba(200,151,58,0.3);padding:1px 7px;border-radius:20px;vertical-align:middle">Admin</span>' : ''}</td>
+      <td><strong>${esc(u.user)}</strong>${isAdmin?` <span style="font-size:0.67rem;color:var(--gold);background:rgba(200,151,58,0.12);border:1px solid rgba(200,151,58,0.3);padding:1px 7px;border-radius:20px;vertical-align:middle">Admin</span>`:''}</td>
       <td>${esc(u.name)}</td>
       <td style="font-family:monospace;letter-spacing:0.08em">${'•'.repeat(Math.min(u.pass.length,12))}</td>
       <td><div class="tbl-actions">
         <button class="btn-edit" onclick="openUserModal(${ri})">Edit</button>
-        ${isAdmin ? '' : `<button class="btn-del" onclick="deleteUser(${ri})">Remove</button>`}
+        ${isAdmin?'':`<button class="btn-del" onclick="deleteUser(${ri})">Remove</button>`}
       </div></td>
     </tr>`;
   }).join('');
   document.getElementById('userTableCount').textContent = `${filtered.length} of ${users.length} users`;
 }
-
 function openUserModal(idx) {
   document.getElementById('editUserIdx').value = idx !== undefined ? idx : '';
   document.getElementById('userModalTitle').textContent = idx !== undefined ? 'Edit User' : 'Add User';
   document.getElementById('userFormErr').textContent = '';
   if (idx !== undefined) {
     const u = loadUsers()[idx];
-    document.getElementById('fUserName').value = u.user;
+    document.getElementById('fUserName').value    = u.user;
     document.getElementById('fDisplayName').value = u.name;
-    document.getElementById('fPassword').value = u.pass;
+    document.getElementById('fPassword').value    = u.pass;
   } else {
-    document.getElementById('fUserName').value = '';
-    document.getElementById('fDisplayName').value = '';
-    document.getElementById('fPassword').value = '';
+    ['fUserName','fDisplayName','fPassword'].forEach(id => document.getElementById(id).value = '');
   }
   document.getElementById('userModal').classList.add('open');
 }
-
 function saveUser() {
-  const username = document.getElementById('fUserName').value.trim();
+  const username    = document.getElementById('fUserName').value.trim();
   const displayName = document.getElementById('fDisplayName').value.trim();
-  const password = document.getElementById('fPassword').value;
-  const errEl = document.getElementById('userFormErr');
+  const password    = document.getElementById('fPassword').value;
+  const errEl       = document.getElementById('userFormErr');
   if (!username || !displayName || !password) { errEl.textContent = 'All fields are required.'; return; }
-  const users = loadUsers();
+  const users  = loadUsers();
   const idxStr = document.getElementById('editUserIdx').value;
-  const idx = idxStr !== '' ? parseInt(idxStr) : -1;
-  const dup = users.findIndex((u,i) => u.user.toLowerCase() === username.toLowerCase() && i !== idx);
+  const idx    = idxStr !== '' ? parseInt(idxStr) : -1;
+  const dup    = users.findIndex((u,i) => u.user.toLowerCase() === username.toLowerCase() && i !== idx);
   if (dup >= 0) { errEl.textContent = 'Username already exists.'; return; }
-  if (idx >= 0) {
-    users[idx] = { user: username, pass: password, name: displayName };
-  } else {
-    users.push({ user: username, pass: password, name: displayName });
-  }
+  if (idx >= 0) users[idx] = { user:username, pass:password, name:displayName };
+  else          users.push({ user:username, pass:password, name:displayName });
   saveUsers(users);
   closeModal('userModal');
   renderUsersTable();
 }
-
 function deleteUser(idx) {
   const users = loadUsers();
   if (!confirm(`Remove user "${users[idx].user}"?`)) return;
@@ -821,29 +1023,34 @@ function deleteUser(idx) {
   renderUsersTable();
 }
 
-// ── Providers table ──
-function owLabel(v) {
-  return {independent:'Independent',pe:'Private Equity',corporate:'Corporate',hospital:'Hospital'}[v] || v;
-}
-function owPip(v) {
-  return `<span class="ow-pip pip-${v}"></span>`;
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — Providers Table
+// ═══════════════════════════════════════════════════════════════════════════
+function owLabel(v) { return {independent:'Independent',pe:'Private Equity',corporate:'Corporate',hospital:'Hospital'}[v]||v; }
+function owPip(v)   { return `<span class="ow-pip pip-${v}"></span>`; }
+function cmChip(v)  {
+  const c = {Yes:'var(--success)',No:'var(--danger)',Limited:'var(--warning)'}[v]||'var(--text-light)';
+  return `<span style="font-weight:600;color:${c};font-size:0.78rem">${esc(v||'?')}</span>`;
 }
 
 function renderProvidersTable() {
-  const q  = document.getElementById('provSearch').value.toLowerCase();
-  const sp = document.getElementById('provSpecFilter').value;
-  const ow = document.getElementById('provOwnerFilter').value;
+  const q   = document.getElementById('provSearch').value.toLowerCase();
+  const sp  = document.getElementById('provSpecFilter').value;
+  const ow  = document.getElementById('provOwnerFilter').value;
   const cat = document.getElementById('provCatFilter').value;
-  const db = loadDB();
+  const db  = loadDB();
   const filtered = db.filter(d =>
-    (!q  || d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)) &&
-    (!sp  || d.specialty === sp) &&
-    (!ow  || d.ownership === ow) &&
+    (!q   || d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)) &&
+    (!sp  || d.specialty  === sp) &&
+    (!ow  || d.ownership  === ow) &&
     (!cat || d.catComanage === cat)
   );
   const tbody = document.getElementById('provTableBody');
   tbody.innerHTML = filtered.map((d, fi) => {
     const ri = db.indexOf(d);
+    const confHtml = d.confirmed
+      ? `<span class="conf-yes">&#10003; Yes</span>`
+      : `<span class="conf-no">—</span>`;
     return `<tr>
       <td style="color:var(--text-light);font-size:0.78rem">${fi+1}</td>
       <td style="font-weight:500;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.displayName)}</td>
@@ -852,6 +1059,7 @@ function renderProvidersTable() {
       <td style="font-size:0.8rem">${owPip(d.ownership)}${owLabel(d.ownership)}</td>
       <td style="font-size:0.8rem;text-align:center">${cmChip(d.catComanage)}</td>
       <td style="font-size:0.8rem;text-align:center">${cmChip(d.glaucTC)}</td>
+      <td style="text-align:center">${confHtml}</td>
       <td style="font-size:0.8rem;color:var(--text-mid)">${esc(d.phone)}</td>
       <td><div class="tbl-actions">
         <button class="btn-edit" onclick="openProviderModal(${ri})">Edit</button>
@@ -860,12 +1068,6 @@ function renderProvidersTable() {
     </tr>`;
   }).join('');
   document.getElementById('provTableCount').textContent = `${filtered.length} of ${db.length} providers`;
-}
-
-function cmChip(v) {
-  const colors = {Yes:'var(--success)',No:'var(--danger)',Limited:'var(--warning)'};
-  const c = colors[v] || 'var(--text-light)';
-  return `<span style="font-weight:600;color:${c};font-size:0.78rem">${esc(v||'?')}</span>`;
 }
 
 function openProviderModal(idx) {
@@ -878,28 +1080,30 @@ function openProviderModal(idx) {
     const d = loadDB()[idx];
     keys.forEach((k,i) => {
       const el = document.getElementById(fields[i]);
-      el.value = k === 'doctors' ? (d[k]||[]).join(', ') : (d[k]||'');
+      if(el) el.value = k==='doctors' ? (d[k]||[]).join(', ') : (d[k]||'');
     });
+    document.getElementById('pConfirmed').checked = !!d.confirmed;
   } else {
-    fields.forEach(f => { const el = document.getElementById(f); if(el) el.value = ''; });
-    document.getElementById('pSpecialty').value = 'Optometrist';
-    document.getElementById('pOwnership').value = 'independent';
-    document.getElementById('pCatComanage').value = 'Yes';
-    document.getElementById('pGlaucTC').value = 'Yes';
+    fields.forEach(f => { const el=document.getElementById(f); if(el) el.value=''; });
+    document.getElementById('pSpecialty').value    = 'Optometrist';
+    document.getElementById('pOwnership').value    = 'independent';
+    document.getElementById('pCatComanage').value  = 'Yes';
+    document.getElementById('pGlaucTC').value      = 'Yes';
+    document.getElementById('pConfirmed').checked  = false;
   }
   document.getElementById('providerModal').classList.add('open');
 }
 
 function saveProvider() {
-  const errEl = document.getElementById('provFormErr');
-  const name = document.getElementById('pDisplayName').value.trim();
-  const practice = document.getElementById('pPractice').value.trim();
+  const errEl   = document.getElementById('provFormErr');
+  const name    = document.getElementById('pDisplayName').value.trim();
+  const practice= document.getElementById('pPractice').value.trim();
   if (!name || !practice) { errEl.textContent = 'Name and Practice are required.'; return; }
-  const db = loadDB();
+  const db     = loadDB();
   const idxStr = document.getElementById('editProvIdx').value;
-  const idx = idxStr !== '' ? parseInt(idxStr) : -1;
-  const entry = {
-    id: idx >= 0 ? db[idx].id : (Math.max(0,...db.map(d=>d.id)) + 1),
+  const idx    = idxStr !== '' ? parseInt(idxStr) : -1;
+  const entry  = {
+    id:          idx >= 0 ? db[idx].id : (Math.max(0,...db.map(d=>d.id))+1),
     displayName: name,
     practice,
     address:     document.getElementById('pAddress').value.trim(),
@@ -914,12 +1118,12 @@ function saveProvider() {
     distEast:    document.getElementById('pDistEast').value.trim(),
     doctors:     document.getElementById('pDoctors').value.split(',').map(s=>s.trim()).filter(Boolean),
     notes:       document.getElementById('pNotes').value.trim(),
+    confirmed:   document.getElementById('pConfirmed').checked,
   };
-  if (idx >= 0) { db[idx] = entry; } else { db.push(entry); }
+  if (idx >= 0) db[idx] = entry; else db.push(entry);
   saveDB(db);
   closeModal('providerModal');
   renderProvidersTable();
-  // refresh main directory
   renderList(loadDB());
 }
 
@@ -932,19 +1136,127 @@ function deleteProvider(idx) {
   renderList(loadDB());
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — GitHub Settings & Sync
+// ═══════════════════════════════════════════════════════════════════════════
+function saveGHToken() {
+  const rawInput = document.getElementById('ghTokenInput').value.trim();
+  const tok = rawInput.startsWith('•') ? getGHToken() : rawInput; // don't overwrite with masked dots
+  if (!tok) { alert('Enter a valid GitHub token.'); return; }
+  localStorage.setItem('nwes_gh_token', tok);
+  document.getElementById('ghTokenStatus').textContent = 'Token saved in this browser.';
+  document.getElementById('ghTokenStatus').className = 'settings-status ok';
+}
+
+async function handleCommitToGitHub() {
+  setSettingsStatus('Committing to GitHub…', '');
+  try {
+    const csv = serializeCSV(loadDB());
+    const sha = await commitCSVToGitHub(csv, `Update providers.csv via web admin — ${new Date().toLocaleString()}`);
+    setSettingsStatus(`✓ Committed to GitHub (${sha.slice(0,7)}) at ${new Date().toLocaleTimeString()}`, 'ok');
+    setSyncBar(`Synced to GitHub ✓ at ${new Date().toLocaleTimeString()}`, 'ok');
+  } catch(err) {
+    setSettingsStatus('✗ Error: ' + err.message, 'err');
+    console.error(err);
+  }
+}
+
+async function handleRefreshFromGitHub() {
+  setSettingsStatus('Fetching latest CSV from GitHub…', '');
+  setSyncBar('Refreshing from GitHub…', '');
+  try {
+    const csvText = await fetchCSVFromGitHub();
+    const providers = parseCSV(csvText);
+    if (!providers.length) throw new Error('CSV parsed to 0 records.');
+    saveDB(providers);
+    renderList(loadDB());
+    renderProvidersTable();
+    const ts = new Date().toLocaleTimeString();
+    setSettingsStatus(`✓ Refreshed — ${providers.length} providers loaded at ${ts}`, 'ok');
+    setSyncBar(`Live data from providers.csv · ${providers.length} providers · Refreshed ${ts}`, 'ok');
+  } catch(err) {
+    setSettingsStatus('✗ Error: ' + err.message, 'err');
+    setSyncBar('Could not refresh from GitHub — showing cached data', 'error');
+    console.error(err);
+  }
+}
+
+function downloadCSV() {
+  const csv = serializeCSV(loadDB());
+  const blob = new Blob([csv], { type:'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'providers.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setSettingsStatus('CSV downloaded — edit in Excel or Google Sheets, then commit back.', 'ok');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 function togglePass(inputId, btn) {
   const el = document.getElementById(inputId);
-  if (el.type === 'password') { el.type = 'text'; btn.textContent = 'Hide'; }
-  else { el.type = 'password'; btn.textContent = 'Show'; }
+  if (el.type === 'password') { el.type = 'text';     btn.textContent = 'Hide'; }
+  else                        { el.type = 'password'; btn.textContent = 'Show'; }
 }
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-checkSession();
+// ═══════════════════════════════════════════════════════════════════════════
+// APP INITIALIZATION  (async — fetches CSV before first render)
+// ═══════════════════════════════════════════════════════════════════════════
+async function initApp() {
+  showLoadingOverlay('Loading provider data from spreadsheet…');
+  setSyncBar('Connecting to spreadsheet…');
+
+  // Try to serve cached data instantly while we fetch
+  try {
+    const cached = localStorage.getItem('nwes_db_v1');
+    if (cached) {
+      const arr = JSON.parse(cached);
+      if (arr.length) {
+        _db = arr;
+        renderList(_db);
+        setSyncBar(`Showing cached data · Checking GitHub for updates…`);
+      }
+    }
+  } catch(e) {}
+
+  // Fetch fresh from GitHub
+  try {
+    const csvText = await fetchCSVFromGitHub();
+    const providers = parseCSV(csvText);
+    if (!providers.length) throw new Error('CSV returned 0 records');
+    // Sort: push "Multiple ODs / See…" to end
+    providers.sort((a,b) => {
+      const k = s => s.replace(/^(Multiple|See )/,'ZZZ_');
+      return k(a.displayName).localeCompare(k(b.displayName));
+    });
+    saveDB(providers);
+    renderList(_db);
+    const ts = new Date().toLocaleTimeString();
+    setSyncBar(`Live data from providers.csv · ${providers.length} providers · Last loaded ${ts}`, 'ok');
+    hideLoadingOverlay();
+  } catch(err) {
+    console.error('CSV fetch failed:', err);
+    if (_db.length) {
+      setSyncBar('Could not reach GitHub — showing cached data. Check connection.', 'error');
+      hideLoadingOverlay();
+    } else {
+      setSyncBar('Could not load provider data. Please refresh the page.', 'error');
+      hideLoadingOverlay();
+    }
+  }
+
+  checkSession();
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
 </script>
 
 <!-- ── Admin Page ── -->
@@ -960,6 +1272,7 @@ checkSession();
     <div class="admin-tabs">
       <div class="admin-tab active" onclick="switchTab('users')">Users</div>
       <div class="admin-tab" onclick="switchTab('providers')">Providers</div>
+      <div class="admin-tab" onclick="switchTab('settings')">⚙ Settings &amp; Sync</div>
     </div>
 
     <!-- Users Panel -->
@@ -1004,12 +1317,63 @@ checkSession();
       </div>
       <div class="admin-table-wrap">
         <table class="admin-table">
-          <thead><tr><th>#</th><th>Name</th><th>Practice</th><th>Specialty</th><th>Ownership</th><th>Cat</th><th>Glc</th><th>Phone</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Name</th><th>Practice</th><th>Specialty</th><th>Ownership</th><th>Cat</th><th>Glc</th><th>Verified</th><th>Phone</th><th>Actions</th></tr></thead>
           <tbody id="provTableBody"></tbody>
         </table>
       </div>
       <div class="tbl-footer" id="provTableCount"></div>
     </div>
+    <!-- Settings Panel -->
+    <div class="admin-panel" id="tab-settings">
+      <div class="settings-section">
+        <h3>GitHub Sync — Spreadsheet Database</h3>
+        <p style="font-size:0.82rem;color:var(--text-mid);margin-bottom:14px;line-height:1.6">
+          Provider data is stored as <strong>providers.csv</strong> in the GitHub repository.
+          Changes made here are saved locally; use <em>Commit to GitHub</em> to push them to the spreadsheet.
+          Anyone with access to the repo can edit the CSV directly in Excel or Google Sheets.
+        </p>
+        <div class="settings-row">
+          <input type="password" id="ghTokenInput" placeholder="GitHub token (ghp_…)" autocomplete="off">
+          <button class="btn-setting" onclick="saveGHToken()">Save Token</button>
+          <button class="btn-setting secondary" onclick="togglePass('ghTokenInput',this)">Show</button>
+        </div>
+        <div class="settings-status" id="ghTokenStatus"></div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Sync Actions</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn-setting secondary" onclick="handleCommitToGitHub()">&#8593; Commit to GitHub</button>
+          <button class="btn-setting" onclick="handleRefreshFromGitHub()" style="background:var(--teal-light)">&#8635; Refresh from GitHub</button>
+          <button class="btn-setting secondary" onclick="downloadCSV()">&#8595; Download CSV</button>
+        </div>
+        <div class="settings-status" id="ghSyncStatus"></div>
+        <p style="font-size:0.75rem;color:var(--text-light);margin-top:10px;line-height:1.6">
+          <strong>Workflow:</strong> Edit providers on the web tool OR directly in the CSV file in GitHub.
+          After editing the CSV file externally, click <em>Refresh from GitHub</em> to pull changes here.
+          The <span style="color:var(--success);font-weight:600">✓ Human Verified</span> badge 
+          is set via the <em>confirmed</em> column in the spreadsheet or via the provider edit form.
+        </p>
+      </div>
+
+      <div class="settings-section">
+        <h3>Spreadsheet Format</h3>
+        <p style="font-size:0.78rem;color:var(--text-mid);margin-bottom:8px;line-height:1.6">
+          The CSV uses these columns in order. The <code>doctors</code> field uses <code>|</code> as a separator 
+          (e.g. <code>Dr. A|Dr. B</code>). Set <code>confirmed</code> to <code>true</code> to show the verified badge.
+        </p>
+        <code style="display:block;background:#f3f4f6;padding:10px 12px;border-radius:6px;font-size:0.74rem;color:#374151;word-break:break-all;line-height:1.8">
+          id, displayName, practice, address, city, phone, website, specialty, ownership, catComanage, glaucTC, distMain, distEast, doctors, notes, confirmed
+        </code>
+        <div style="margin-top:12px">
+          <a href="https://github.com/LuchoClaudeTools/nwes-providers/blob/main/providers.csv" target="_blank"
+             style="font-size:0.8rem;color:var(--teal);text-decoration:none;font-weight:500">
+            &#8599; View providers.csv on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1135,12 +1499,25 @@ checkSession();
       <label>Notes</label>
       <textarea id="pNotes" placeholder="Additional notes about this provider…"></textarea>
     </div>
+    <div class="form-row" style="margin-top:4px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:0.84rem">
+        <input type="checkbox" id="pConfirmed" style="width:15px;height:15px;cursor:pointer">
+        <span>&#10003; Confirmed / Human Verified <span style="font-weight:400;color:var(--text-light)">(shows verified badge on directory)</span></span>
+      </label>
+    </div>
     <div class="form-err" id="provFormErr"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('providerModal')">Cancel</button>
       <button class="btn-save" onclick="saveProvider()">Save Provider</button>
     </div>
   </div>
+</div>
+
+
+<!-- ── Loading Overlay ── -->
+<div id="loadingOverlay">
+  <div class="spin"></div>
+  <div class="loading-msg" id="loadingMsg">Loading provider data…</div>
 </div>
 
 </body>
