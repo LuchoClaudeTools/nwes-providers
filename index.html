@@ -135,6 +135,81 @@
     .doctor-list { max-height: 220px; }
     .card-body, .comanage-section { grid-template-columns: 1fr; }
   }
+
+  /* ── Login overlay ── */
+  #loginOverlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #loginOverlay.hidden { display: none; }
+  .login-box {
+    background: white; border-radius: 16px; padding: 40px 36px;
+    width: 100%; max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  .login-logo { margin-bottom: 20px; }
+  .login-title {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 1.15rem; font-weight: 700;
+    color: var(--navy); margin-bottom: 4px;
+  }
+  .login-sub {
+    font-size: 0.75rem; color: var(--text-light);
+    letter-spacing: 0.07em; text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .login-field { margin-bottom: 14px; text-align: left; }
+  .login-field label {
+    display: block; font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--text-light); margin-bottom: 5px;
+  }
+  .login-field input {
+    width: 100%; padding: 10px 13px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    color: var(--text-dark); outline: none;
+    transition: border-color 0.18s;
+  }
+  .login-field input:focus { border-color: var(--teal); }
+  .login-btn {
+    width: 100%; padding: 11px;
+    background: var(--navy); color: white;
+    border: none; border-radius: 8px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+    margin-top: 8px; transition: background 0.18s;
+    letter-spacing: 0.03em;
+  }
+  .login-btn:hover { background: var(--navy-light); }
+  .login-error {
+    color: var(--danger); font-size: 0.8rem;
+    margin-top: 10px; min-height: 18px;
+  }
+  .login-footer {
+    margin-top: 22px; font-size: 0.68rem;
+    color: var(--text-light); border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  /* ── Sign-out button in header ── */
+  .signout-btn {
+    font-size: 0.72rem; font-weight: 600;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.7);
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 5px 13px; border-radius: 20px;
+    cursor: pointer; letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s;
+    margin-left: 10px;
+  }
+  .signout-btn:hover { background: rgba(255,255,255,0.15); color: white; }
+  #userGreeting {
+    font-size: 0.72rem; color: rgba(255,255,255,0.45);
+    margin-left: 6px;
+  }
 </style>
 </head>
 <body>
@@ -151,8 +226,43 @@
       <div class="hdr-sub">Referring Provider Directory · Columbus, Ohio</div>
     </div>
   </div>
-  <div class="hdr-badge">Staff Tool</div>
+  <div style="display:flex;align-items:center;">
+    <div class="hdr-badge">Staff Tool</div>
+    <span id="userGreeting"></span>
+    <button class="signout-btn" onclick="signOut()">Sign Out</button>
+  </div>
 </header>
+
+<!-- ── Login Overlay ── -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg width="44" height="44" viewBox="0 0 32 32" fill="none">
+        <ellipse cx="16" cy="16" rx="14" ry="9" stroke="#c8973a" stroke-width="1.8"/>
+        <circle cx="16" cy="16" r="5" fill="#1a7f8e"/>
+        <circle cx="17.5" cy="14.5" r="1.8" fill="white" opacity="0.65"/>
+      </svg>
+    </div>
+    <div class="login-title">Northwest Eye Surgeons</div>
+    <div class="login-sub">Staff Portal · Sign In Required</div>
+    <form onsubmit="attemptLogin(event)">
+      <div class="login-field">
+        <label for="loginUser">Username</label>
+        <input type="text" id="loginUser" placeholder="Enter your username" autocomplete="username" required>
+      </div>
+      <div class="login-field">
+        <label for="loginPass">Password</label>
+        <input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="login-btn">Sign In</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+    <div class="login-footer">
+      Northwest Eye Surgeons · Internal Use Only<br>
+      Contact your administrator for access.
+    </div>
+  </div>
+</div>
 
 <div class="app">
   <div class="left-panel">
@@ -370,6 +480,58 @@ function selectFromPractice(id) {
 }
 
 renderList(DB);
+
+// ── Authentication ──────────────────────────────────────────────
+//
+// Add, remove, or edit users below.
+// Format: { user: "username", pass: "password", name: "Display Name" }
+//
+const USERS = [
+  { user: "admin",      pass: "NWEye2024!",   name: "Admin" },
+  { user: "frontdesk",  pass: "Columbus24",   name: "Front Desk" },
+  { user: "scheduling", pass: "Referral24",   name: "Scheduling" },
+];
+
+const SESSION_KEY = "nwes_auth";
+
+function checkSession() {
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (stored) {
+    const data = JSON.parse(stored);
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('userGreeting').textContent = data.name;
+  }
+}
+
+function attemptLogin(e) {
+  e.preventDefault();
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  const match = USERS.find(u => u.user.toLowerCase() === user && u.pass === pass);
+  if (match) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ name: match.name }));
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('userGreeting').textContent = match.name;
+    document.getElementById('loginError').textContent = '';
+  } else {
+    document.getElementById('loginError').textContent = 'Incorrect username or password.';
+    document.getElementById('loginPass').value = '';
+    document.getElementById('loginPass').focus();
+  }
+}
+
+function signOut() {
+  sessionStorage.removeItem(SESSION_KEY);
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('userGreeting').textContent = '';
+  document.getElementById('loginUser').focus();
+}
+
+checkSession();
 </script>
 </body>
 </html>
+
