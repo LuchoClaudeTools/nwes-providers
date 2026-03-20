@@ -473,6 +473,9 @@
 </div>
 
 <script>
+const USERS_KEY = "nwes_users_v1";
+const DB_KEY    = "nwes_db_v1";
+
 const DB_DEFAULT = [
   { id:1, displayName:"Multiple ODs on Staff", practice:"MyEyeDr.", address:"2200 W Henderson Rd, Suite A", city:"Columbus, OH 43220", phone:"(614) 273-2020", website:"locations.myeyedr.com/oh/columbus/2200-w-henderson-road", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"0.7 mi", distEast:"16.8 mi", doctors:["Multiple ODs on staff"], notes:"Closest optometry location to NW Eye Surgeons main office. PE-backed (Goldman Sachs Capital Partners), 900+ locations nationally. Co-management relationships may vary by individual OD. Accepts broad insurance." },
   { id:2, displayName:"Travis, Beth A., O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"One of the closest practices to NWES main office (~1.5 mi). Independently owned LLC (Dr. Bosner, Sole Member). Established 1968. Full-scope therapeutic optometry; surgery co-management. Services include glaucoma diagnosis/treatment, cataract co-management, and vision therapy." },
@@ -717,8 +720,7 @@ function signOut() {
 }
 
 // ── Admin ─────────────────────────────────────────────────────
-const USERS_KEY = 'nwes_users_v1';
-const DB_KEY    = 'nwes_db_v1';
+// USERS_KEY and DB_KEY are defined at top of script
 
 function loadUsers() {
   const s = localStorage.getItem(USERS_KEY);
