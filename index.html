@@ -210,6 +210,179 @@
     font-size: 0.72rem; color: rgba(255,255,255,0.45);
     margin-left: 6px;
   }
+
+  /* ── Admin Button ── */
+  .admin-btn {
+    font-size: 0.72rem; font-weight: 600;
+    background: rgba(200,151,58,0.15);
+    color: var(--gold);
+    border: 1px solid rgba(200,151,58,0.35);
+    padding: 5px 13px; border-radius: 20px;
+    cursor: pointer; letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s;
+    margin-left: 10px;
+  }
+  .admin-btn:hover { background: rgba(200,151,58,0.28); color: #e8b84a; }
+
+  /* ── Admin Page ── */
+  #adminPage {
+    display: none; position: fixed; inset: 62px 0 0 0;
+    background: var(--cream); z-index: 500;
+    overflow-y: auto;
+  }
+  #adminPage.visible { display: block; }
+  .admin-hdr {
+    background: var(--navy); color: white;
+    padding: 18px 28px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 3px solid var(--gold); position: sticky; top: 0; z-index: 10;
+  }
+  .admin-hdr h2 {
+    font-family: 'Libre Baskerville', serif; font-size: 1.1rem; font-weight: 700; flex: 1;
+  }
+  .admin-hdr-sub { font-size: 0.7rem; color: rgba(255,255,255,0.42); letter-spacing: 0.07em; text-transform: uppercase; margin-top: 2px; }
+  .back-btn {
+    font-size: 0.75rem; font-weight: 600;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 6px 14px; border-radius: 20px;
+    cursor: pointer; letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.16); color: white; }
+  .admin-body { padding: 24px 28px; }
+  .admin-tabs { display: flex; gap: 4px; margin-bottom: 0; }
+  .admin-tab {
+    padding: 9px 24px; border-radius: 8px 8px 0 0;
+    font-size: 0.84rem; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); border-bottom: none;
+    background: white; color: var(--text-mid);
+    transition: background 0.13s, color 0.13s;
+  }
+  .admin-tab.active { background: var(--navy); color: white; border-color: var(--navy); }
+  .admin-panel { display: none; background: white; border: 1px solid var(--border); border-radius: 0 10px 10px 10px; padding: 0; overflow: hidden; }
+  .admin-panel.active { display: block; }
+
+  /* Toolbar */
+  .admin-toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    background: #f9f8f6;
+  }
+  .admin-toolbar input[type="text"] {
+    flex: 1; min-width: 180px; padding: 8px 12px;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem;
+    color: var(--text-dark); outline: none; transition: border-color 0.18s;
+  }
+  .admin-toolbar input[type="text"]:focus { border-color: var(--teal); }
+  .admin-toolbar select {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.84rem;
+    color: var(--text-dark); background: white; outline: none; cursor: pointer;
+    transition: border-color 0.18s;
+  }
+  .admin-toolbar select:focus { border-color: var(--teal); }
+  .btn-add {
+    margin-left: auto; padding: 8px 16px;
+    background: var(--teal); color: white;
+    border: none; border-radius: 7px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .btn-add:hover { background: var(--teal-light); }
+
+  /* Table */
+  .admin-table-wrap { overflow-x: auto; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+  .admin-table thead { background: var(--navy); color: white; }
+  .admin-table th {
+    padding: 10px 14px; font-size: 0.67rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; text-align: left; white-space: nowrap;
+  }
+  .admin-table td {
+    padding: 10px 14px; color: var(--text-dark);
+    border-bottom: 1px solid var(--border); vertical-align: middle;
+  }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .admin-table tr:hover td { background: #f8f9ff; }
+  .tbl-actions { display: flex; gap: 6px; }
+  .btn-edit, .btn-del {
+    padding: 4px 11px; border-radius: 6px; border: 1px solid;
+    font-size: 0.74rem; font-weight: 600; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: background 0.13s;
+  }
+  .btn-edit { border-color: var(--teal); color: var(--teal); background: rgba(26,127,142,0.05); }
+  .btn-edit:hover { background: rgba(26,127,142,0.12); }
+  .btn-del { border-color: var(--danger); color: var(--danger); background: rgba(184,50,50,0.04); }
+  .btn-del:hover { background: rgba(184,50,50,0.1); }
+  .tbl-footer { font-size: 0.72rem; color: var(--text-light); padding: 8px 16px; border-top: 1px solid var(--border); background: #f9f8f6; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9500;
+    background: rgba(13,35,64,0.55); align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: white; border-radius: 14px; padding: 28px 26px;
+    width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35); animation: fadeIn 0.18s ease;
+  }
+  .modal-title {
+    font-family: 'Libre Baskerville', serif; font-size: 1.05rem;
+    font-weight: 700; color: var(--navy); margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-close { background: none; border: none; cursor: pointer; font-size: 1.3rem; color: var(--text-light); padding: 0; line-height: 1; transition: color 0.13s; }
+  .modal-close:hover { color: var(--danger); }
+  .form-row { margin-bottom: 13px; }
+  .form-row label {
+    display: block; font-size: 0.67rem; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--text-light); margin-bottom: 5px;
+  }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem;
+    color: var(--text-dark); outline: none;
+    transition: border-color 0.18s; background: white;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--teal); }
+  .form-row textarea { resize: vertical; min-height: 75px; }
+  .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
+  .btn-save {
+    padding: 9px 20px; background: var(--navy); color: white;
+    border: none; border-radius: 7px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 600;
+    transition: background 0.15s;
+  }
+  .btn-save:hover { background: var(--navy-light); }
+  .btn-cancel {
+    padding: 9px 16px; background: white; color: var(--text-mid);
+    border: 1px solid var(--border); border-radius: 7px; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 0.88rem; font-weight: 500;
+    transition: background 0.13s;
+  }
+  .btn-cancel:hover { background: var(--cream); }
+  .form-err { color: var(--danger); font-size: 0.78rem; margin-top: 6px; }
+  .pass-wrap { position: relative; }
+  .pass-wrap input { padding-right: 52px; }
+  .pass-toggle {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: var(--text-light);
+    font-size: 0.72rem; font-weight: 600; padding: 0;
+    transition: color 0.13s;
+  }
+  .pass-toggle:hover { color: var(--teal); }
+  .ow-pip { display:inline-block; width:8px; height:8px; border-radius:3px; margin-right:5px; vertical-align:middle; }
+  .pip-independent { background:#4ade80; } .pip-pe { background:#fbbf24; }
+  .pip-corporate { background:#f87171; } .pip-hospital { background:#60a5fa; }
+
 </style>
 </head>
 <body>
@@ -229,6 +402,7 @@
   <div style="display:flex;align-items:center;">
     <div class="hdr-badge">Staff Tool</div>
     <span id="userGreeting"></span>
+    <button class="admin-btn" id="adminBtn" onclick="goToAdmin()" style="display:none">&#9965; Admin</button>
     <button class="signout-btn" onclick="signOut()">Sign Out</button>
   </div>
 </header>
@@ -299,7 +473,7 @@
 </div>
 
 <script>
-const DB = [
+const DB_DEFAULT = [
   { id:1, displayName:"Multiple ODs on Staff", practice:"MyEyeDr.", address:"2200 W Henderson Rd, Suite A", city:"Columbus, OH 43220", phone:"(614) 273-2020", website:"locations.myeyedr.com/oh/columbus/2200-w-henderson-road", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"0.7 mi", distEast:"16.8 mi", doctors:["Multiple ODs on staff"], notes:"Closest optometry location to NW Eye Surgeons main office. PE-backed (Goldman Sachs Capital Partners), 900+ locations nationally. Co-management relationships may vary by individual OD. Accepts broad insurance." },
   { id:2, displayName:"Travis, Beth A., O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"One of the closest practices to NWES main office (~1.5 mi). Independently owned LLC (Dr. Bosner, Sole Member). Established 1968. Full-scope therapeutic optometry; surgery co-management. Services include glaucoma diagnosis/treatment, cataract co-management, and vision therapy." },
   { id:3, displayName:"Curtis, Julie, O.D.", practice:"Northwest EyeCare Professionals", address:"3360 Tremont Rd, Suite 200", city:"Upper Arlington, OH 43221", phone:"(614) 486-5205", website:"nweye.com", specialty:"Optometrist", ownership:"independent", catComanage:"Yes", glaucTC:"Yes", distMain:"1.5 mi", distEast:"16.2 mi", doctors:["Dr. Beth A. Travis, O.D.","Dr. Julie Curtis, O.D.","Dr. Douglas Bosner, O.D. (Owner)"], notes:"Independently owned LLC. Established 1968. Full-scope therapeutic optometry including surgery co-management and glaucoma diagnosis/treatment." },
@@ -346,7 +520,7 @@ const DB = [
   { id:44, displayName:"Myers, Jeffrey, O.D., F.A.A.O., F.N.A.P.", practice:"Winchester Vision Care / AEG Vision — Canal Winchester", address:"6472 Winchester Blvd", city:"Canal Winchester, OH 43110", phone:"(614) 837-9595", website:"winchestervisioncare.com", specialty:"Optometrist", ownership:"pe", catComanage:"Yes", glaucTC:"Yes", distMain:"16.8 mi", distEast:"12.5 mi", doctors:["Dr. Steven Manning, O.D., M.S.","Dr. Bradley Ortisi, O.D.","Dr. Elizabeth Day, O.D., M.S.","Dr. Jeffrey Myers, O.D., F.A.A.O., F.N.A.P.","Dr. Jenny Tran, O.D."], notes:"Fellow of the American Academy of Optometry (F.A.A.O.) and Fellow of the National Academy of Practice (F.N.A.P.) — highly credentialed. Part of AEG Vision / EyeCare Specialties of Ohio (PE-backed)." }
 ];
 
-DB.sort((a, b) => {
+DB_DEFAULT.sort((a, b) => {
   const sortKey = s => s.replace(/^(Multiple|See )/, 'ZZZ_');
   return sortKey(a.displayName).localeCompare(sortKey(b.displayName));
 });
@@ -362,7 +536,7 @@ let selectedId = null;
 
 function filterDoctors() {
   const q = document.getElementById('docSearch').value.toLowerCase();
-  renderList(DB.filter(d => d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)));
+  renderList(loadDB().filter(d => d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)));
 }
 
 function renderList(items) {
@@ -383,7 +557,7 @@ function renderList(items) {
 function selectDoctor(id) {
   selectedId = id;
   filterDoctors();
-  const d = DB.find(x => x.id === id);
+  const d = loadDB().find(x => x.id === id);
   if (!d) return;
   document.getElementById('practiceSearch').value = '';
   document.getElementById('practiceResults').innerHTML = '';
@@ -458,7 +632,7 @@ function searchByPractice() {
   const q = document.getElementById('practiceSearch').value.toLowerCase().trim();
   const resultsDiv = document.getElementById('practiceResults');
   if (!q) { resultsDiv.innerHTML = ''; return; }
-  const matches = DB.filter(d => d.practice.toLowerCase().includes(q));
+  const matches = loadDB().filter(d => d.practice.toLowerCase().includes(q));
   if (!matches.length) { resultsDiv.innerHTML = `<div class="practice-results"><div class="pr-header">No practices found matching "${q}"</div></div>`; return; }
   const practiceMap = {};
   matches.forEach(d => { if (!practiceMap[d.practice]) practiceMap[d.practice] = []; practiceMap[d.practice].push(d); });
@@ -479,14 +653,14 @@ function selectFromPractice(id) {
   document.getElementById('detailArea').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
-renderList(DB);
+renderList(loadDB());
 
 // ── Authentication ──────────────────────────────────────────────
 //
 // Add, remove, or edit users below.
 // Format: { user: "username", pass: "password", name: "Display Name" }
 //
-const USERS = [
+const USERS_DEFAULT = [
   { user: "admin",      pass: "NWEye2024!",   name: "Admin" },
   { user: "frontdesk",  pass: "Columbus24",   name: "Front Desk" },
   { user: "scheduling", pass: "Referral24",   name: "Scheduling" },
@@ -500,6 +674,10 @@ function checkSession() {
     const data = JSON.parse(stored);
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('userGreeting').textContent = data.name;
+    currentUser = data;
+    const adminBtn = document.getElementById('adminBtn');
+    if (data.isAdmin) adminBtn.style.display = '';
+    else adminBtn.style.display = 'none';
   }
 }
 
@@ -507,12 +685,17 @@ function attemptLogin(e) {
   e.preventDefault();
   const user = document.getElementById('loginUser').value.trim().toLowerCase();
   const pass = document.getElementById('loginPass').value;
-  const match = USERS.find(u => u.user.toLowerCase() === user && u.pass === pass);
+  const users = loadUsers();
+  const match = users.find(u => u.user.toLowerCase() === user && u.pass === pass);
   if (match) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ name: match.name }));
+    const isAdmin = match.user.toLowerCase() === 'admin';
+    currentUser = { name: match.name, isAdmin };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(currentUser));
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('userGreeting').textContent = match.name;
     document.getElementById('loginError').textContent = '';
+    const adminBtn = document.getElementById('adminBtn');
+    if (isAdmin) adminBtn.style.display = ''; else adminBtn.style.display = 'none';
   } else {
     document.getElementById('loginError').textContent = 'Incorrect username or password.';
     document.getElementById('loginPass').value = '';
@@ -522,7 +705,10 @@ function attemptLogin(e) {
 
 function signOut() {
   sessionStorage.removeItem(SESSION_KEY);
+  currentUser = null;
   document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('adminPage').classList.remove('visible');
+  document.getElementById('adminBtn').style.display = 'none';
   document.getElementById('loginUser').value = '';
   document.getElementById('loginPass').value = '';
   document.getElementById('loginError').textContent = '';
@@ -530,8 +716,432 @@ function signOut() {
   document.getElementById('loginUser').focus();
 }
 
+// ── Admin ─────────────────────────────────────────────────────
+const USERS_KEY = 'nwes_users_v1';
+const DB_KEY    = 'nwes_db_v1';
+
+function loadUsers() {
+  const s = localStorage.getItem(USERS_KEY);
+  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(USERS_DEFAULT));
+}
+function saveUsers(arr) { localStorage.setItem(USERS_KEY, JSON.stringify(arr)); }
+function loadDB() {
+  const s = localStorage.getItem(DB_KEY);
+  return s ? JSON.parse(s) : JSON.parse(JSON.stringify(DB_DEFAULT));
+}
+function saveDB(arr) { localStorage.setItem(DB_KEY, JSON.stringify(arr)); }
+
+let currentUser = null;
+
+function goToAdmin() {
+  document.getElementById('adminPage').classList.add('visible');
+  renderUsersTable();
+  renderProvidersTable();
+}
+function goToMain() {
+  document.getElementById('adminPage').classList.remove('visible');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach((el,i) => el.classList.toggle('active', ['users','providers'][i] === tab));
+  document.querySelectorAll('.admin-panel').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── Users table ──
+function renderUsersTable() {
+  const q = document.getElementById('userSearch').value.toLowerCase();
+  const users = loadUsers();
+  const filtered = users.filter(u =>
+    u.user.toLowerCase().includes(q) || u.name.toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('userTableBody');
+  tbody.innerHTML = filtered.map((u, fi) => {
+    const ri = users.indexOf(u);
+    const isAdmin = u.user.toLowerCase() === 'admin';
+    return `<tr>
+      <td style="color:var(--text-light);font-size:0.78rem">${fi+1}</td>
+      <td><strong>${esc(u.user)}</strong>${isAdmin ? ' <span style="font-size:0.67rem;color:var(--gold);background:rgba(200,151,58,0.12);border:1px solid rgba(200,151,58,0.3);padding:1px 7px;border-radius:20px;vertical-align:middle">Admin</span>' : ''}</td>
+      <td>${esc(u.name)}</td>
+      <td style="font-family:monospace;letter-spacing:0.08em">${'•'.repeat(Math.min(u.pass.length,12))}</td>
+      <td><div class="tbl-actions">
+        <button class="btn-edit" onclick="openUserModal(${ri})">Edit</button>
+        ${isAdmin ? '' : `<button class="btn-del" onclick="deleteUser(${ri})">Remove</button>`}
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('userTableCount').textContent = `${filtered.length} of ${users.length} users`;
+}
+
+function openUserModal(idx) {
+  document.getElementById('editUserIdx').value = idx !== undefined ? idx : '';
+  document.getElementById('userModalTitle').textContent = idx !== undefined ? 'Edit User' : 'Add User';
+  document.getElementById('userFormErr').textContent = '';
+  if (idx !== undefined) {
+    const u = loadUsers()[idx];
+    document.getElementById('fUserName').value = u.user;
+    document.getElementById('fDisplayName').value = u.name;
+    document.getElementById('fPassword').value = u.pass;
+  } else {
+    document.getElementById('fUserName').value = '';
+    document.getElementById('fDisplayName').value = '';
+    document.getElementById('fPassword').value = '';
+  }
+  document.getElementById('userModal').classList.add('open');
+}
+
+function saveUser() {
+  const username = document.getElementById('fUserName').value.trim();
+  const displayName = document.getElementById('fDisplayName').value.trim();
+  const password = document.getElementById('fPassword').value;
+  const errEl = document.getElementById('userFormErr');
+  if (!username || !displayName || !password) { errEl.textContent = 'All fields are required.'; return; }
+  const users = loadUsers();
+  const idxStr = document.getElementById('editUserIdx').value;
+  const idx = idxStr !== '' ? parseInt(idxStr) : -1;
+  const dup = users.findIndex((u,i) => u.user.toLowerCase() === username.toLowerCase() && i !== idx);
+  if (dup >= 0) { errEl.textContent = 'Username already exists.'; return; }
+  if (idx >= 0) {
+    users[idx] = { user: username, pass: password, name: displayName };
+  } else {
+    users.push({ user: username, pass: password, name: displayName });
+  }
+  saveUsers(users);
+  closeModal('userModal');
+  renderUsersTable();
+}
+
+function deleteUser(idx) {
+  const users = loadUsers();
+  if (!confirm(`Remove user "${users[idx].user}"?`)) return;
+  users.splice(idx, 1);
+  saveUsers(users);
+  renderUsersTable();
+}
+
+// ── Providers table ──
+function owLabel(v) {
+  return {independent:'Independent',pe:'Private Equity',corporate:'Corporate',hospital:'Hospital'}[v] || v;
+}
+function owPip(v) {
+  return `<span class="ow-pip pip-${v}"></span>`;
+}
+
+function renderProvidersTable() {
+  const q  = document.getElementById('provSearch').value.toLowerCase();
+  const sp = document.getElementById('provSpecFilter').value;
+  const ow = document.getElementById('provOwnerFilter').value;
+  const cat = document.getElementById('provCatFilter').value;
+  const db = loadDB();
+  const filtered = db.filter(d =>
+    (!q  || d.displayName.toLowerCase().includes(q) || d.practice.toLowerCase().includes(q)) &&
+    (!sp  || d.specialty === sp) &&
+    (!ow  || d.ownership === ow) &&
+    (!cat || d.catComanage === cat)
+  );
+  const tbody = document.getElementById('provTableBody');
+  tbody.innerHTML = filtered.map((d, fi) => {
+    const ri = db.indexOf(d);
+    return `<tr>
+      <td style="color:var(--text-light);font-size:0.78rem">${fi+1}</td>
+      <td style="font-weight:500;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.displayName)}</td>
+      <td style="color:var(--text-mid);font-size:0.8rem;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.practice)}</td>
+      <td style="font-size:0.8rem">${esc(d.specialty)}</td>
+      <td style="font-size:0.8rem">${owPip(d.ownership)}${owLabel(d.ownership)}</td>
+      <td style="font-size:0.8rem;text-align:center">${cmChip(d.catComanage)}</td>
+      <td style="font-size:0.8rem;text-align:center">${cmChip(d.glaucTC)}</td>
+      <td style="font-size:0.8rem;color:var(--text-mid)">${esc(d.phone)}</td>
+      <td><div class="tbl-actions">
+        <button class="btn-edit" onclick="openProviderModal(${ri})">Edit</button>
+        <button class="btn-del" onclick="deleteProvider(${ri})">Remove</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('provTableCount').textContent = `${filtered.length} of ${db.length} providers`;
+}
+
+function cmChip(v) {
+  const colors = {Yes:'var(--success)',No:'var(--danger)',Limited:'var(--warning)'};
+  const c = colors[v] || 'var(--text-light)';
+  return `<span style="font-weight:600;color:${c};font-size:0.78rem">${esc(v||'?')}</span>`;
+}
+
+function openProviderModal(idx) {
+  document.getElementById('editProvIdx').value = idx !== undefined ? idx : '';
+  document.getElementById('provModalTitle').textContent = idx !== undefined ? 'Edit Provider' : 'Add Provider';
+  document.getElementById('provFormErr').textContent = '';
+  const fields = ['pDisplayName','pPractice','pAddress','pCity','pPhone','pWebsite','pSpecialty','pOwnership','pCatComanage','pGlaucTC','pDistMain','pDistEast','pDoctors','pNotes'];
+  const keys   = ['displayName','practice','address','city','phone','website','specialty','ownership','catComanage','glaucTC','distMain','distEast','doctors','notes'];
+  if (idx !== undefined) {
+    const d = loadDB()[idx];
+    keys.forEach((k,i) => {
+      const el = document.getElementById(fields[i]);
+      el.value = k === 'doctors' ? (d[k]||[]).join(', ') : (d[k]||'');
+    });
+  } else {
+    fields.forEach(f => { const el = document.getElementById(f); if(el) el.value = ''; });
+    document.getElementById('pSpecialty').value = 'Optometrist';
+    document.getElementById('pOwnership').value = 'independent';
+    document.getElementById('pCatComanage').value = 'Yes';
+    document.getElementById('pGlaucTC').value = 'Yes';
+  }
+  document.getElementById('providerModal').classList.add('open');
+}
+
+function saveProvider() {
+  const errEl = document.getElementById('provFormErr');
+  const name = document.getElementById('pDisplayName').value.trim();
+  const practice = document.getElementById('pPractice').value.trim();
+  if (!name || !practice) { errEl.textContent = 'Name and Practice are required.'; return; }
+  const db = loadDB();
+  const idxStr = document.getElementById('editProvIdx').value;
+  const idx = idxStr !== '' ? parseInt(idxStr) : -1;
+  const entry = {
+    id: idx >= 0 ? db[idx].id : (Math.max(0,...db.map(d=>d.id)) + 1),
+    displayName: name,
+    practice,
+    address:     document.getElementById('pAddress').value.trim(),
+    city:        document.getElementById('pCity').value.trim(),
+    phone:       document.getElementById('pPhone').value.trim(),
+    website:     document.getElementById('pWebsite').value.trim(),
+    specialty:   document.getElementById('pSpecialty').value,
+    ownership:   document.getElementById('pOwnership').value,
+    catComanage: document.getElementById('pCatComanage').value,
+    glaucTC:     document.getElementById('pGlaucTC').value,
+    distMain:    document.getElementById('pDistMain').value.trim(),
+    distEast:    document.getElementById('pDistEast').value.trim(),
+    doctors:     document.getElementById('pDoctors').value.split(',').map(s=>s.trim()).filter(Boolean),
+    notes:       document.getElementById('pNotes').value.trim(),
+  };
+  if (idx >= 0) { db[idx] = entry; } else { db.push(entry); }
+  saveDB(db);
+  closeModal('providerModal');
+  renderProvidersTable();
+  // refresh main directory
+  renderList(loadDB());
+}
+
+function deleteProvider(idx) {
+  const db = loadDB();
+  if (!confirm(`Remove "${db[idx].displayName}"?`)) return;
+  db.splice(idx, 1);
+  saveDB(db);
+  renderProvidersTable();
+  renderList(loadDB());
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function togglePass(inputId, btn) {
+  const el = document.getElementById(inputId);
+  if (el.type === 'password') { el.type = 'text'; btn.textContent = 'Hide'; }
+  else { el.type = 'password'; btn.textContent = 'Show'; }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 checkSession();
 </script>
+
+<!-- ── Admin Page ── -->
+<div id="adminPage">
+  <div class="admin-hdr">
+    <div>
+      <h2>Administration</h2>
+      <div class="admin-hdr-sub">Northwest Eye Surgeons · Admin Panel</div>
+    </div>
+    <button class="back-btn" onclick="goToMain()">&#8592; Back to Directory</button>
+  </div>
+  <div class="admin-body">
+    <div class="admin-tabs">
+      <div class="admin-tab active" onclick="switchTab('users')">Users</div>
+      <div class="admin-tab" onclick="switchTab('providers')">Providers</div>
+    </div>
+
+    <!-- Users Panel -->
+    <div class="admin-panel active" id="tab-users">
+      <div class="admin-toolbar">
+        <input type="text" id="userSearch" placeholder="Search username or name…" oninput="renderUsersTable()">
+        <button class="btn-add" onclick="openUserModal()">+ Add User</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>#</th><th>Username</th><th>Display Name</th><th>Password</th><th>Actions</th></tr></thead>
+          <tbody id="userTableBody"></tbody>
+        </table>
+      </div>
+      <div class="tbl-footer" id="userTableCount"></div>
+    </div>
+
+    <!-- Providers Panel -->
+    <div class="admin-panel" id="tab-providers">
+      <div class="admin-toolbar">
+        <input type="text" id="provSearch" placeholder="Search name or practice…" oninput="renderProvidersTable()">
+        <select id="provSpecFilter" onchange="renderProvidersTable()">
+          <option value="">All Specialties</option>
+          <option value="Optometrist">Optometrist</option>
+          <option value="Ophthalmologist">Ophthalmologist</option>
+          <option value="Primary Care">Primary Care</option>
+        </select>
+        <select id="provOwnerFilter" onchange="renderProvidersTable()">
+          <option value="">All Ownership Types</option>
+          <option value="independent">Independent</option>
+          <option value="pe">Private Equity</option>
+          <option value="corporate">Corporate</option>
+          <option value="hospital">Hospital</option>
+        </select>
+        <select id="provCatFilter" onchange="renderProvidersTable()">
+          <option value="">All Cataract Co-Manage</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Limited">Limited</option>
+        </select>
+        <button class="btn-add" onclick="openProviderModal()">+ Add Provider</button>
+      </div>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>#</th><th>Name</th><th>Practice</th><th>Specialty</th><th>Ownership</th><th>Cat</th><th>Glc</th><th>Phone</th><th>Actions</th></tr></thead>
+          <tbody id="provTableBody"></tbody>
+        </table>
+      </div>
+      <div class="tbl-footer" id="provTableCount"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── User Modal ── -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="userModalTitle">Add User</span>
+      <button class="modal-close" onclick="closeModal('userModal')">&times;</button>
+    </div>
+    <input type="hidden" id="editUserIdx" value="">
+    <div class="form-row">
+      <label>Username</label>
+      <input type="text" id="fUserName" placeholder="e.g. jsmith" autocomplete="off">
+    </div>
+    <div class="form-row">
+      <label>Display Name</label>
+      <input type="text" id="fDisplayName" placeholder="e.g. Jane Smith">
+    </div>
+    <div class="form-row">
+      <label>Password</label>
+      <div class="pass-wrap">
+        <input type="password" id="fPassword" placeholder="Enter password" autocomplete="new-password">
+        <button type="button" class="pass-toggle" onclick="togglePass('fPassword',this)">Show</button>
+      </div>
+    </div>
+    <div class="form-err" id="userFormErr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('userModal')">Cancel</button>
+      <button class="btn-save" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Provider Modal ── -->
+<div class="modal-overlay" id="providerModal">
+  <div class="modal-box">
+    <div class="modal-title">
+      <span id="provModalTitle">Add Provider</span>
+      <button class="modal-close" onclick="closeModal('providerModal')">&times;</button>
+    </div>
+    <input type="hidden" id="editProvIdx" value="">
+    <div class="form-2col">
+      <div class="form-row">
+        <label>Display Name</label>
+        <input type="text" id="pDisplayName" placeholder="Last, First, Credentials">
+      </div>
+      <div class="form-row">
+        <label>Practice Name</label>
+        <input type="text" id="pPractice" placeholder="Practice name">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Address</label>
+      <input type="text" id="pAddress" placeholder="Street address">
+    </div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label>City, State, ZIP</label>
+        <input type="text" id="pCity" placeholder="Columbus, OH 43220">
+      </div>
+      <div class="form-row">
+        <label>Phone</label>
+        <input type="text" id="pPhone" placeholder="(614) 000-0000">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Website</label>
+      <input type="text" id="pWebsite" placeholder="example.com">
+    </div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label>Specialty</label>
+        <select id="pSpecialty">
+          <option value="Optometrist">Optometrist</option>
+          <option value="Ophthalmologist">Ophthalmologist</option>
+          <option value="Primary Care">Primary Care</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Ownership Type</label>
+        <select id="pOwnership">
+          <option value="independent">Independent</option>
+          <option value="pe">Private Equity</option>
+          <option value="corporate">Corporate</option>
+          <option value="hospital">Hospital</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label>Cataract Co-Manage</label>
+        <select id="pCatComanage">
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Limited">Limited</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Glaucoma TC</label>
+        <select id="pGlaucTC">
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Limited">Limited</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-2col">
+      <div class="form-row">
+        <label>Distance (Main Office)</label>
+        <input type="text" id="pDistMain" placeholder="e.g. 2.1 mi">
+      </div>
+      <div class="form-row">
+        <label>Distance (East Office)</label>
+        <input type="text" id="pDistEast" placeholder="e.g. 12.5 mi">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Doctors on Staff (comma-separated)</label>
+      <input type="text" id="pDoctors" placeholder="Dr. A, Dr. B">
+    </div>
+    <div class="form-row">
+      <label>Notes</label>
+      <textarea id="pNotes" placeholder="Additional notes about this provider…"></textarea>
+    </div>
+    <div class="form-err" id="provFormErr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('providerModal')">Cancel</button>
+      <button class="btn-save" onclick="saveProvider()">Save Provider</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
+
 
