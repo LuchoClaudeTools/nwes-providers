@@ -769,6 +769,354 @@ a.website:hover { text-decoration: underline; }
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
+// STICKY NOTES SYSTEM
+//
+// Architecture: GitHub-backed, per-user, private
+//
+// Each user has one JSON file in the repo: notes/<username>.json
+// Schema: { "<noteKey>": { text, defaultOpen, pos } }
+//
+// noteKey:
+//   provider note:  "provider_<id>"
+//   practice note:  "practice_<slug>"
+//
+// Sync strategy:
+//   LOAD  — fetch fresh from GitHub on open; fall back to localStorage cache if offline
+//   SAVE  — write to localStorage immediately (cache), then push to GitHub when:
+//             • user closes the note (✕)
+//             • user minimizes the note
+//             • user navigates away to a different provider/practice
+//             • user signs out
+//   OFFLINE — if GitHub push fails: keep local cache, set a "pending sync" flag,
+//             warn via sync bar, and retry push next time the note is opened.
+//
+// The floating widget is a single DOM element reused for every note.
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _snCurrentKey   = null;   // noteKey currently loaded in the widget
+let _snAllNotes     = {};     // full notes object for current user (in-memory + localStorage cache)
+let _snPendingSync  = false;  // true when local cache is ahead of GitHub
+let _snSyncing      = false;  // guard against concurrent pushes
+
+// ── GitHub paths ─────────────────────────────────────────────────────────
+function snGHPath() {
+  const u = currentUser ? currentUser.name.replace(/[^a-z0-9_\-]/gi,'_') : 'anon';
+  return `notes/${u}.json`;
+}
+function snGHApiUrl() {
+  return `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${snGHPath()}`;
+}
+function snGHRawUrl() {
+  return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${snGHPath()}?t=${Date.now()}`;
+}
+
+// ── localStorage cache helpers ────────────────────────────────────────────
+function snCacheKey() {
+  const u = currentUser ? currentUser.name : 'anon';
+  return `nwes_notes_${u}`;
+}
+function snLoadCache() {
+  try {
+    const raw = localStorage.getItem(snCacheKey());
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+function snWriteCache(allNotes) {
+  try { localStorage.setItem(snCacheKey(), JSON.stringify(allNotes)); } catch(e) {}
+}
+function snPendingKey() { return snCacheKey() + '_pending'; }
+function snGetPending() { return localStorage.getItem(snPendingKey()) === '1'; }
+function snSetPending(v) {
+  if (v) localStorage.setItem(snPendingKey(), '1');
+  else   localStorage.removeItem(snPendingKey());
+}
+
+// ── Slug helper ───────────────────────────────────────────────────────────
+function snSlug(str) {
+  return String(str).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
+}
+
+// ── Load all notes for current user from GitHub (async) ──────────────────
+async function snFetchAllFromGitHub() {
+  try {
+    const resp = await fetch(snGHRawUrl(), { cache: 'no-store' });
+    if (resp.status === 404) return {};          // file doesn't exist yet
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return await resp.json();
+  } catch(e) {
+    throw e;
+  }
+}
+
+// ── Push all notes for current user to GitHub (async) ────────────────────
+async function snPushAllToGitHub(allNotes) {
+  const token = getGHToken();
+  if (!token) throw new Error('No GitHub token — notes saved locally only.');
+
+  const path = snGHPath();
+  const apiUrl = snGHApiUrl();
+  const hdrs = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json',
+  };
+
+  // Get current SHA if file exists
+  let sha = null;
+  const getR = await fetch(apiUrl + `?ref=${GH_BRANCH}`, { headers: hdrs });
+  if (getR.ok) { sha = (await getR.json()).sha; }
+  else if (getR.status !== 404) throw new Error(`GitHub GET failed: ${getR.status}`);
+
+  const jsonText = JSON.stringify(allNotes, null, 2);
+  const b64 = btoa(Array.from(new TextEncoder().encode(jsonText)).map(b=>String.fromCharCode(b)).join(''));
+  const body = {
+    message: `Update notes for ${currentUser ? currentUser.name : 'user'} — ${new Date().toLocaleString()}`,
+    content: b64,
+    branch: GH_BRANCH,
+  };
+  if (sha) body.sha = sha;
+
+  const putR = await fetch(apiUrl, { method:'PUT', headers: hdrs, body: JSON.stringify(body) });
+  if (!putR.ok) {
+    const err = await putR.text();
+    throw new Error(`GitHub PUT failed (${putR.status}): ${err}`);
+  }
+}
+
+// ── Get / set a single note within the in-memory store ───────────────────
+function snGet(noteKey) {
+  return _snAllNotes[noteKey] || null;
+}
+function snSet(noteKey, data) {
+  _snAllNotes[noteKey] = data;
+  snWriteCache(_snAllNotes);
+}
+
+// ── Initialise notes for the logged-in user (called after login) ──────────
+async function snInit() {
+  _snAllNotes = snLoadCache();     // start with local cache for instant access
+  _snPendingSync = snGetPending(); // check if we have unsynced local changes
+
+  // Fetch fresh from GitHub in background
+  try {
+    const remote = await snFetchAllFromGitHub();
+    // Merge: remote wins for any key both sides have, unless we have pending local changes
+    if (_snPendingSync) {
+      // Local is ahead — push our version, then treat as synced
+      await snPushAllToGitHub(_snAllNotes);
+      snSetPending(false);
+      _snPendingSync = false;
+      setSyncBar('Notes synced (pending changes pushed) · ' + new Date().toLocaleTimeString(), 'ok');
+    } else {
+      _snAllNotes = remote;
+      snWriteCache(_snAllNotes);
+    }
+  } catch(e) {
+    // Offline or token missing — just use local cache
+    if (_snPendingSync) {
+      setSyncBar('Notes have unsynced changes — will retry when connected.', 'error');
+    }
+  }
+}
+
+// ── Flush (save) current note to memory + cache, then push to GitHub ─────
+// triggerLabel is a short string for the commit message context
+async function _snFlushAndPush(triggerLabel) {
+  if (!_snCurrentKey) return;
+  if (_snSyncing) return;
+
+  // Capture current textarea value
+  const ta = document.getElementById('snTextarea');
+  const el = document.getElementById('stickyNote');
+  const existing = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
+  existing.text = ta ? ta.value : existing.text;
+  existing.pos  = { x: parseInt(el.style.left)||120, y: parseInt(el.style.top)||120 };
+  snSet(_snCurrentKey, existing);           // write to memory + localStorage immediately
+  _snRefreshTriggerDot(_snCurrentKey);
+
+  // Now push to GitHub
+  _snSyncing = true;
+  setSyncBar('Saving note…');
+  try {
+    await snPushAllToGitHub(_snAllNotes);
+    snSetPending(false);
+    _snPendingSync = false;
+    setSyncBar('Note saved · ' + new Date().toLocaleTimeString(), 'ok');
+  } catch(e) {
+    // Save locally, mark pending, warn user
+    snSetPending(true);
+    _snPendingSync = true;
+    setSyncBar('Note saved locally — could not sync to GitHub (' + e.message + '). Will retry next time.', 'error');
+  } finally {
+    _snSyncing = false;
+  }
+}
+
+// ── Open the sticky note for a given key ─────────────────────────────────
+async function stickyOpen(noteKey, isPractice) {
+  _snCurrentKey = noteKey;
+  const note = snGet(noteKey) || { text: '', defaultOpen: false, pos: null };
+
+  // If we have a pending sync, try a background re-fetch to get latest from GitHub
+  if (!_snPendingSync) {
+    try {
+      const remote = await snFetchAllFromGitHub();
+      _snAllNotes = remote;
+      snWriteCache(remote);
+    } catch(e) { /* offline — use cache */ }
+  }
+
+  const freshNote = snGet(noteKey) || note;
+
+  // Populate widget
+  const ta = document.getElementById('snTextarea');
+  ta.value = freshNote.text || '';
+  _snUpdateDefaultLabel(freshNote.defaultOpen);
+
+  const el = document.getElementById('stickyNote');
+  el.classList.remove('minimized');
+  _snUpdateMinBtn(false);
+  el.classList.toggle('practice-note', !!isPractice);
+  _snSetPosition(freshNote.pos);
+  el.classList.add('visible');
+  ta.focus();
+}
+
+// ── Called when trigger icon is double-clicked ────────────────────────────
+async function stickyOpenFromTrigger(noteKey, isPractice) {
+  const el = document.getElementById('stickyNote');
+  if (el.classList.contains('visible') && _snCurrentKey === noteKey) {
+    el.classList.remove('minimized');
+    _snUpdateMinBtn(false);
+    return;
+  }
+  // Flush current note before switching
+  if (_snCurrentKey) await _snFlushAndPush('switch');
+  await stickyOpen(noteKey, isPractice);
+}
+
+// ── Auto-open on card render if defaultOpen is set ────────────────────────
+async function stickyMaybeAutoOpen(noteKey, isPractice) {
+  const el = document.getElementById('stickyNote');
+  // Flush and hide note from previous view
+  if (_snCurrentKey && _snCurrentKey !== noteKey) {
+    await _snFlushAndPush('navigate');
+    el.classList.remove('visible');
+    _snCurrentKey = null;
+  }
+  const note = snGet(noteKey);
+  if (note && note.defaultOpen) {
+    await stickyOpen(noteKey, isPractice);
+  }
+}
+
+// ── Close ────────────────────────────────────────────────────────────────
+async function stickyClose() {
+  await _snFlushAndPush('close');
+  document.getElementById('stickyNote').classList.remove('visible');
+}
+
+// ── Minimize / restore ───────────────────────────────────────────────────
+async function stickyToggleMinimize() {
+  const el = document.getElementById('stickyNote');
+  const isMin = el.classList.toggle('minimized');
+  _snUpdateMinBtn(isMin);
+  if (isMin) await _snFlushAndPush('minimize');
+}
+function _snUpdateMinBtn(isMin) {
+  const btn = document.getElementById('snMinimizeBtn');
+  btn.textContent = isMin ? '\u25a2' : '\u2014';
+  btn.title       = isMin ? 'Restore note' : 'Minimize note';
+}
+
+// ── Default-open toggle ──────────────────────────────────────────────────
+function stickyToggleDefault() {
+  if (!_snCurrentKey) return;
+  const note = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
+  note.defaultOpen = !note.defaultOpen;
+  snSet(_snCurrentKey, note);
+  _snUpdateDefaultLabel(note.defaultOpen);
+  _snRefreshTriggerDot(_snCurrentKey);
+  // Push this lightweight preference change immediately
+  snPushAllToGitHub(_snAllNotes).catch(() => { snSetPending(true); });
+}
+function _snUpdateDefaultLabel(isOpen) {
+  const el = document.getElementById('snDefaultToggle');
+  el.textContent = isOpen ? 'Default: Open' : 'Default: Closed';
+  el.title = isOpen
+    ? 'Opens automatically next time. Click to change.'
+    : 'Stays closed by default. Click to auto-open next time.';
+}
+
+// ── Trigger dot (green indicator that note has content) ───────────────────
+function _snRefreshTriggerDot(noteKey) {
+  const icon = document.querySelector(`.sticky-trigger[data-note-key="${noteKey}"]`);
+  if (!icon) return;
+  const note = snGet(noteKey);
+  icon.classList.toggle('has-note', !!(note && note.text && note.text.trim()));
+}
+
+// ── Position ──────────────────────────────────────────────────────────────
+function _snSetPosition(savedPos) {
+  const el = document.getElementById('stickyNote');
+  if (savedPos && savedPos.x !== undefined) {
+    el.style.left = Math.max(0,  Math.min(savedPos.x, window.innerWidth  - 240)) + 'px';
+    el.style.top  = Math.max(70, Math.min(savedPos.y, window.innerHeight - 60))  + 'px';
+  } else {
+    const rightPanel = document.querySelector('.right-panel');
+    if (rightPanel) {
+      const rect = rightPanel.getBoundingClientRect();
+      el.style.left = Math.max(10, rect.right - 250) + 'px';
+      el.style.top  = (rect.top + 24) + 'px';
+    } else {
+      el.style.left = (window.innerWidth - 250) + 'px';
+      el.style.top  = '90px';
+    }
+  }
+}
+
+// ── Drag logic ────────────────────────────────────────────────────────────
+(function() {
+  let dragging = false, ox = 0, oy = 0;
+  const bar = document.getElementById('snBar');
+
+  bar.addEventListener('mousedown', function(e) {
+    if (e.target.classList.contains('sn-ctrl') || e.target.classList.contains('sn-default-toggle')) return;
+    dragging = true;
+    const el = document.getElementById('stickyNote');
+    const rect = el.getBoundingClientRect();
+    ox = e.clientX - rect.left;
+    oy = e.clientY - rect.top;
+    el.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    const el = document.getElementById('stickyNote');
+    let nx = Math.max(0,  Math.min(e.clientX - ox, window.innerWidth  - el.offsetWidth));
+    let ny = Math.max(62, Math.min(e.clientY - oy, window.innerHeight - el.offsetHeight));
+    el.style.left = nx + 'px';
+    el.style.top  = ny + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!dragging) return;
+    dragging = false;
+    document.getElementById('stickyNote').classList.remove('dragging');
+    // Position change only — update local cache but don't push (avoid commit on every drag)
+    if (_snCurrentKey) {
+      const existing = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
+      const el = document.getElementById('stickyNote');
+      existing.pos = { x: parseInt(el.style.left)||120, y: parseInt(el.style.top)||120 };
+      snSet(_snCurrentKey, existing);  // cache only, pos saved with next real push
+    }
+  });
+})();
+
+
+// ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════
 const USERS_KEY    = 'nwes_users_v1';
@@ -1044,7 +1392,7 @@ function renderCard(d,editMode){
 
   // ── Sticky note key and state for this provider ──
   const noteKey = 'provider_' + d.id;
-  const noteData = snLoad(noteKey);
+  const noteData = snGet(noteKey);
   const hasNote  = !!(noteData && noteData.text && noteData.text.trim());
   const stickyIcon = `<span class="sticky-trigger${hasNote?' has-note':''}" data-note-key="${noteKey}"
     ondblclick="stickyOpenFromTrigger('${noteKey}', false)"
@@ -1311,7 +1659,7 @@ function searchByPractice(){
   let html=`<div class="practice-results"><div class="pr-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Found ${matches.length} provider${matches.length!==1?'s':''} across ${Object.keys(pm).length} practice${Object.keys(pm).length!==1?'s':''}</span></div>`;
   Object.entries(pm).forEach(([practice,docs])=>{
     const practiceKey='practice_'+snSlug(practice);
-    const pNote=snLoad(practiceKey);
+    const pNote=snGet(practiceKey);
     const pHasNote=!!(pNote&&pNote.text&&pNote.text.trim());
     // Practice group header row with sticky icon
     html+=`<div style="display:flex;align-items:center;padding:6px 14px 4px;background:#f9f8f6;border-bottom:1px solid var(--border);">
@@ -1714,353 +2062,6 @@ function esc(s){
   if(s==null)return'';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// STICKY NOTES SYSTEM
-//
-// Architecture: GitHub-backed, per-user, private
-//
-// Each user has one JSON file in the repo: notes/<username>.json
-// Schema: { "<noteKey>": { text, defaultOpen, pos } }
-//
-// noteKey:
-//   provider note:  "provider_<id>"
-//   practice note:  "practice_<slug>"
-//
-// Sync strategy:
-//   LOAD  — fetch fresh from GitHub on open; fall back to localStorage cache if offline
-//   SAVE  — write to localStorage immediately (cache), then push to GitHub when:
-//             • user closes the note (✕)
-//             • user minimizes the note
-//             • user navigates away to a different provider/practice
-//             • user signs out
-//   OFFLINE — if GitHub push fails: keep local cache, set a "pending sync" flag,
-//             warn via sync bar, and retry push next time the note is opened.
-//
-// The floating widget is a single DOM element reused for every note.
-// ═══════════════════════════════════════════════════════════════════════════
-
-let _snCurrentKey   = null;   // noteKey currently loaded in the widget
-let _snAllNotes     = {};     // full notes object for current user (in-memory + localStorage cache)
-let _snPendingSync  = false;  // true when local cache is ahead of GitHub
-let _snSyncing      = false;  // guard against concurrent pushes
-
-// ── GitHub paths ─────────────────────────────────────────────────────────
-function snGHPath() {
-  const u = currentUser ? currentUser.name.replace(/[^a-z0-9_\-]/gi,'_') : 'anon';
-  return `notes/${u}.json`;
-}
-function snGHApiUrl() {
-  return `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${snGHPath()}`;
-}
-function snGHRawUrl() {
-  return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${snGHPath()}?t=${Date.now()}`;
-}
-
-// ── localStorage cache helpers ────────────────────────────────────────────
-function snCacheKey() {
-  const u = currentUser ? currentUser.name : 'anon';
-  return `nwes_notes_${u}`;
-}
-function snLoadCache() {
-  try {
-    const raw = localStorage.getItem(snCacheKey());
-    return raw ? JSON.parse(raw) : {};
-  } catch(e) { return {}; }
-}
-function snWriteCache(allNotes) {
-  try { localStorage.setItem(snCacheKey(), JSON.stringify(allNotes)); } catch(e) {}
-}
-function snPendingKey() { return snCacheKey() + '_pending'; }
-function snGetPending() { return localStorage.getItem(snPendingKey()) === '1'; }
-function snSetPending(v) {
-  if (v) localStorage.setItem(snPendingKey(), '1');
-  else   localStorage.removeItem(snPendingKey());
-}
-
-// ── Slug helper ───────────────────────────────────────────────────────────
-function snSlug(str) {
-  return String(str).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
-}
-
-// ── Load all notes for current user from GitHub (async) ──────────────────
-async function snFetchAllFromGitHub() {
-  try {
-    const resp = await fetch(snGHRawUrl(), { cache: 'no-store' });
-    if (resp.status === 404) return {};          // file doesn't exist yet
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return await resp.json();
-  } catch(e) {
-    throw e;
-  }
-}
-
-// ── Push all notes for current user to GitHub (async) ────────────────────
-async function snPushAllToGitHub(allNotes) {
-  const token = getGHToken();
-  if (!token) throw new Error('No GitHub token — notes saved locally only.');
-
-  const path = snGHPath();
-  const apiUrl = snGHApiUrl();
-  const hdrs = {
-    'Authorization': `Bearer ${token}`,
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json',
-  };
-
-  // Get current SHA if file exists
-  let sha = null;
-  const getR = await fetch(apiUrl + `?ref=${GH_BRANCH}`, { headers: hdrs });
-  if (getR.ok) { sha = (await getR.json()).sha; }
-  else if (getR.status !== 404) throw new Error(`GitHub GET failed: ${getR.status}`);
-
-  const jsonText = JSON.stringify(allNotes, null, 2);
-  const b64 = btoa(Array.from(new TextEncoder().encode(jsonText)).map(b=>String.fromCharCode(b)).join(''));
-  const body = {
-    message: `Update notes for ${currentUser ? currentUser.name : 'user'} — ${new Date().toLocaleString()}`,
-    content: b64,
-    branch: GH_BRANCH,
-  };
-  if (sha) body.sha = sha;
-
-  const putR = await fetch(apiUrl, { method:'PUT', headers: hdrs, body: JSON.stringify(body) });
-  if (!putR.ok) {
-    const err = await putR.text();
-    throw new Error(`GitHub PUT failed (${putR.status}): ${err}`);
-  }
-}
-
-// ── Get / set a single note within the in-memory store ───────────────────
-function snGet(noteKey) {
-  return _snAllNotes[noteKey] || null;
-}
-function snSet(noteKey, data) {
-  _snAllNotes[noteKey] = data;
-  snWriteCache(_snAllNotes);
-}
-
-// ── Initialise notes for the logged-in user (called after login) ──────────
-async function snInit() {
-  _snAllNotes = snLoadCache();     // start with local cache for instant access
-  _snPendingSync = snGetPending(); // check if we have unsynced local changes
-
-  // Fetch fresh from GitHub in background
-  try {
-    const remote = await snFetchAllFromGitHub();
-    // Merge: remote wins for any key both sides have, unless we have pending local changes
-    if (_snPendingSync) {
-      // Local is ahead — push our version, then treat as synced
-      await snPushAllToGitHub(_snAllNotes);
-      snSetPending(false);
-      _snPendingSync = false;
-      setSyncBar('Notes synced (pending changes pushed) · ' + new Date().toLocaleTimeString(), 'ok');
-    } else {
-      _snAllNotes = remote;
-      snWriteCache(_snAllNotes);
-    }
-  } catch(e) {
-    // Offline or token missing — just use local cache
-    if (_snPendingSync) {
-      setSyncBar('Notes have unsynced changes — will retry when connected.', 'error');
-    }
-  }
-}
-
-// ── Flush (save) current note to memory + cache, then push to GitHub ─────
-// triggerLabel is a short string for the commit message context
-async function _snFlushAndPush(triggerLabel) {
-  if (!_snCurrentKey) return;
-  if (_snSyncing) return;
-
-  // Capture current textarea value
-  const ta = document.getElementById('snTextarea');
-  const el = document.getElementById('stickyNote');
-  const existing = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
-  existing.text = ta ? ta.value : existing.text;
-  existing.pos  = { x: parseInt(el.style.left)||120, y: parseInt(el.style.top)||120 };
-  snSet(_snCurrentKey, existing);           // write to memory + localStorage immediately
-  _snRefreshTriggerDot(_snCurrentKey);
-
-  // Now push to GitHub
-  _snSyncing = true;
-  setSyncBar('Saving note…');
-  try {
-    await snPushAllToGitHub(_snAllNotes);
-    snSetPending(false);
-    _snPendingSync = false;
-    setSyncBar('Note saved · ' + new Date().toLocaleTimeString(), 'ok');
-  } catch(e) {
-    // Save locally, mark pending, warn user
-    snSetPending(true);
-    _snPendingSync = true;
-    setSyncBar('Note saved locally — could not sync to GitHub (' + e.message + '). Will retry next time.', 'error');
-  } finally {
-    _snSyncing = false;
-  }
-}
-
-// ── Open the sticky note for a given key ─────────────────────────────────
-async function stickyOpen(noteKey, isPractice) {
-  _snCurrentKey = noteKey;
-  const note = snGet(noteKey) || { text: '', defaultOpen: false, pos: null };
-
-  // If we have a pending sync, try a background re-fetch to get latest from GitHub
-  if (!_snPendingSync) {
-    try {
-      const remote = await snFetchAllFromGitHub();
-      _snAllNotes = remote;
-      snWriteCache(remote);
-    } catch(e) { /* offline — use cache */ }
-  }
-
-  const freshNote = snGet(noteKey) || note;
-
-  // Populate widget
-  const ta = document.getElementById('snTextarea');
-  ta.value = freshNote.text || '';
-  _snUpdateDefaultLabel(freshNote.defaultOpen);
-
-  const el = document.getElementById('stickyNote');
-  el.classList.remove('minimized');
-  _snUpdateMinBtn(false);
-  el.classList.toggle('practice-note', !!isPractice);
-  _snSetPosition(freshNote.pos);
-  el.classList.add('visible');
-  ta.focus();
-}
-
-// ── Called when trigger icon is double-clicked ────────────────────────────
-async function stickyOpenFromTrigger(noteKey, isPractice) {
-  const el = document.getElementById('stickyNote');
-  if (el.classList.contains('visible') && _snCurrentKey === noteKey) {
-    el.classList.remove('minimized');
-    _snUpdateMinBtn(false);
-    return;
-  }
-  // Flush current note before switching
-  if (_snCurrentKey) await _snFlushAndPush('switch');
-  await stickyOpen(noteKey, isPractice);
-}
-
-// ── Auto-open on card render if defaultOpen is set ────────────────────────
-async function stickyMaybeAutoOpen(noteKey, isPractice) {
-  const el = document.getElementById('stickyNote');
-  // Flush and hide note from previous view
-  if (_snCurrentKey && _snCurrentKey !== noteKey) {
-    await _snFlushAndPush('navigate');
-    el.classList.remove('visible');
-    _snCurrentKey = null;
-  }
-  const note = snGet(noteKey);
-  if (note && note.defaultOpen) {
-    await stickyOpen(noteKey, isPractice);
-  }
-}
-
-// ── Close ────────────────────────────────────────────────────────────────
-async function stickyClose() {
-  await _snFlushAndPush('close');
-  document.getElementById('stickyNote').classList.remove('visible');
-}
-
-// ── Minimize / restore ───────────────────────────────────────────────────
-async function stickyToggleMinimize() {
-  const el = document.getElementById('stickyNote');
-  const isMin = el.classList.toggle('minimized');
-  _snUpdateMinBtn(isMin);
-  if (isMin) await _snFlushAndPush('minimize');
-}
-function _snUpdateMinBtn(isMin) {
-  const btn = document.getElementById('snMinimizeBtn');
-  btn.textContent = isMin ? '\u25a2' : '\u2014';
-  btn.title       = isMin ? 'Restore note' : 'Minimize note';
-}
-
-// ── Default-open toggle ──────────────────────────────────────────────────
-function stickyToggleDefault() {
-  if (!_snCurrentKey) return;
-  const note = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
-  note.defaultOpen = !note.defaultOpen;
-  snSet(_snCurrentKey, note);
-  _snUpdateDefaultLabel(note.defaultOpen);
-  _snRefreshTriggerDot(_snCurrentKey);
-  // Push this lightweight preference change immediately
-  snPushAllToGitHub(_snAllNotes).catch(() => { snSetPending(true); });
-}
-function _snUpdateDefaultLabel(isOpen) {
-  const el = document.getElementById('snDefaultToggle');
-  el.textContent = isOpen ? 'Default: Open' : 'Default: Closed';
-  el.title = isOpen
-    ? 'Opens automatically next time. Click to change.'
-    : 'Stays closed by default. Click to auto-open next time.';
-}
-
-// ── Trigger dot (green indicator that note has content) ───────────────────
-function _snRefreshTriggerDot(noteKey) {
-  const icon = document.querySelector(`.sticky-trigger[data-note-key="${noteKey}"]`);
-  if (!icon) return;
-  const note = snGet(noteKey);
-  icon.classList.toggle('has-note', !!(note && note.text && note.text.trim()));
-}
-
-// ── Position ──────────────────────────────────────────────────────────────
-function _snSetPosition(savedPos) {
-  const el = document.getElementById('stickyNote');
-  if (savedPos && savedPos.x !== undefined) {
-    el.style.left = Math.max(0,  Math.min(savedPos.x, window.innerWidth  - 240)) + 'px';
-    el.style.top  = Math.max(70, Math.min(savedPos.y, window.innerHeight - 60))  + 'px';
-  } else {
-    const rightPanel = document.querySelector('.right-panel');
-    if (rightPanel) {
-      const rect = rightPanel.getBoundingClientRect();
-      el.style.left = Math.max(10, rect.right - 250) + 'px';
-      el.style.top  = (rect.top + 24) + 'px';
-    } else {
-      el.style.left = (window.innerWidth - 250) + 'px';
-      el.style.top  = '90px';
-    }
-  }
-}
-
-// ── Drag logic ────────────────────────────────────────────────────────────
-(function() {
-  let dragging = false, ox = 0, oy = 0;
-  const bar = document.getElementById('snBar');
-
-  bar.addEventListener('mousedown', function(e) {
-    if (e.target.classList.contains('sn-ctrl') || e.target.classList.contains('sn-default-toggle')) return;
-    dragging = true;
-    const el = document.getElementById('stickyNote');
-    const rect = el.getBoundingClientRect();
-    ox = e.clientX - rect.left;
-    oy = e.clientY - rect.top;
-    el.classList.add('dragging');
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!dragging) return;
-    const el = document.getElementById('stickyNote');
-    let nx = Math.max(0,  Math.min(e.clientX - ox, window.innerWidth  - el.offsetWidth));
-    let ny = Math.max(62, Math.min(e.clientY - oy, window.innerHeight - el.offsetHeight));
-    el.style.left = nx + 'px';
-    el.style.top  = ny + 'px';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (!dragging) return;
-    dragging = false;
-    document.getElementById('stickyNote').classList.remove('dragging');
-    // Position change only — update local cache but don't push (avoid commit on every drag)
-    if (_snCurrentKey) {
-      const existing = snGet(_snCurrentKey) || { text: '', defaultOpen: false, pos: null };
-      const el = document.getElementById('stickyNote');
-      existing.pos = { x: parseInt(el.style.left)||120, y: parseInt(el.style.top)||120 };
-      snSet(_snCurrentKey, existing);  // cache only, pos saved with next real push
-    }
-  });
-})();
 
 // ═══════════════════════════════════════════════════════════════════════════
 // INIT
