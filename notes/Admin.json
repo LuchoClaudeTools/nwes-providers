@@ -1,10 +1,18 @@
 {
   "provider_2": {
-    "text": "TEST TEST",
-    "defaultOpen": true,
+    "text": "",
+    "defaultOpen": false,
     "pos": {
-      "x": 817,
-      "y": 181
+      "x": 768,
+      "y": 96
+    }
+  },
+  "provider_3": {
+    "text": "",
+    "defaultOpen": false,
+    "pos": {
+      "x": 978,
+      "y": 124
     }
   }
 }
