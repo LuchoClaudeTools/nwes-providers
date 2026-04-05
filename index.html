@@ -701,9 +701,15 @@ a.website:hover { text-decoration: underline; }
     </div>
     <div class="form-2col">
       <div class="form-row">
+        <label>Email</label>
+        <input type="email" id="pEmail" placeholder="dr@practice.com">
+      </div>
+      <div class="form-row">
         <label>Website</label>
         <input type="text" id="pWebsite" placeholder="example.com">
       </div>
+    </div>
+    <div class="form-2col">
       <div class="form-row">
         <label>Dist. from Main (mi)</label>
         <input type="text" id="pDistMain" placeholder="e.g. 4.2 mi">
@@ -1169,6 +1175,7 @@ function parseCSV(text) {
       address: get(c,'address'),
       city: get(c,'city'),
       phone: get(c,'phone'),
+      email: get(c,'email'),
       website: get(c,'website'),
       specialty: get(c,'specialty'),
       ownership: get(c,'ownership'),
@@ -1187,7 +1194,7 @@ function parseCSV(text) {
 // ═══════════════════════════════════════════════════════════════════════════
 // CSV SERIALIZER
 // ═══════════════════════════════════════════════════════════════════════════
-const CSV_HEADERS=['id','displayName','practice','address','city','phone','website',
+const CSV_HEADERS=['id','displayName','practice','address','city','phone','email','website',
   'specialty','ownership','catComanage','glaucTC','distMain','distEast','doctors','notes','confirmed'];
 function csvField(v){
   const s=String(v==null?'':v);
@@ -1510,6 +1517,10 @@ function renderCard(d,editMode){
           <div class="editable-field"><input class="edit-input" id="ei_phone" value="${esc(d.phone)}" placeholder="(614) 000-0000"></div>
         </div>
         <div class="info-block">
+          <div class="info-label">Email</div>
+          <div class="editable-field"><input class="edit-input" type="email" id="ei_email" value="${esc(d.email||'')}" placeholder="dr@practice.com"></div>
+        </div>
+        <div class="info-block">
           <div class="info-label">Website</div>
           <div class="editable-field"><input class="edit-input" id="ei_website" value="${esc(d.website)}" placeholder="example.com"></div>
         </div>
@@ -1587,6 +1598,7 @@ async function saveInlineEdit(id){
     address:     g('ei_address'),
     city:        g('ei_city'),
     phone:       g('ei_phone'),
+    email:       g('ei_email'),
     website:     g('ei_website'),
     specialty:   g('ei_specialty'),
     ownership:   g('ei_ownership'),
@@ -1930,6 +1942,7 @@ function openProviderModal(id){
     document.getElementById('pAddress').value=d.address||'';
     document.getElementById('pCity').value=d.city||'';
     document.getElementById('pPhone').value=d.phone||'';
+    document.getElementById('pEmail').value=d.email||'';
     document.getElementById('pWebsite').value=d.website||'';
     document.getElementById('pDistMain').value=d.distMain||'';
     document.getElementById('pDistEast').value=d.distEast||'';
@@ -1939,7 +1952,7 @@ function openProviderModal(id){
     document.getElementById('pDoctors').value=(d.doctors||[]).join(' | ');
     document.getElementById('pNotes').value=d.notes||'';
   }else{
-    ['pName','pPractice','pAddress','pCity','pPhone','pWebsite','pDistMain','pDistEast','pDoctors','pNotes'].forEach(id=>{document.getElementById(id).value='';});
+    ['pName','pPractice','pAddress','pCity','pPhone','pEmail','pWebsite','pDistMain','pDistEast','pDoctors','pNotes'].forEach(id=>{document.getElementById(id).value='';});
     document.getElementById('pSpecialty').value='Optometrist';
     document.getElementById('pOwnership').value='independent';
     document.getElementById('pCatComanage').value='Yes';
@@ -1958,7 +1971,7 @@ async function saveProviderModal(){
     displayName:g('pName'),practice:g('pPractice'),
     specialty:g('pSpecialty'),ownership:g('pOwnership'),
     address:g('pAddress'),city:g('pCity'),
-    phone:g('pPhone'),website:g('pWebsite'),
+    phone:g('pPhone'),email:g('pEmail'),website:g('pWebsite'),
     distMain:g('pDistMain'),distEast:g('pDistEast'),
     catComanage:g('pCatComanage'),glaucTC:g('pGlaucTC'),
     confirmed:g('pConfirmed')==='true',
