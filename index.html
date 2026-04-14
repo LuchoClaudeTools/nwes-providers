@@ -1394,6 +1394,9 @@ function renderCard(d,editMode){
   const phoneHtml=d.phone&&!d.phone.startsWith('See')
     ?`<a class="phone" href="tel:${d.phone}">${esc(d.phone)}</a>`
     :`<span class="info-value muted">${esc(d.phone)||'—'}</span>`;
+  const emailHtml=d.email
+    ?`<a class="phone" href="mailto:${esc(d.email)}">${esc(d.email)}</a>`
+    :`<span class="info-value muted">—</span>`;
 
   const chips=(d.doctors||[]).map(doc=>`<span class="doc-chip">${esc(doc)}</span>`).join('');
 
@@ -1450,6 +1453,10 @@ function renderCard(d,editMode){
         <div class="info-block">
           <div class="info-label">Phone</div>
           <div class="info-value">${phoneHtml}</div>
+        </div>
+        <div class="info-block">
+          <div class="info-label">Email</div>
+          <div class="info-value">${emailHtml}</div>
         </div>
         <div class="info-block">
           <div class="info-label">Website</div>
