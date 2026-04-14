@@ -1205,7 +1205,7 @@ function serializeCSV(providers){
   const lines=[CSV_HEADERS.join(',')];
   for(const p of providers){
     const doctorsStr=Array.isArray(p.doctors)?p.doctors.join('|'):(p.doctors||'');
-    lines.push([p.id,p.displayName,p.practice,p.address,p.city,p.phone,p.website,
+    lines.push([p.id,p.displayName,p.practice,p.address,p.city,p.phone,p.email,p.website,
       p.specialty,p.ownership,p.catComanage,p.glaucTC,p.distMain,p.distEast,
       doctorsStr,p.notes,p.confirmed?'true':'false'].map(csvField).join(','));
   }
