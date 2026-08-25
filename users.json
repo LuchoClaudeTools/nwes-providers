@@ -6,8 +6,8 @@
       "name": "Admin",
       "canEdit": true,
       "canVerify": true,
-      "salt": "fGrcsFBRmYQ8B2cToJ+5Cw==",
-      "hash": "BbqQBHMAgQvi1jLlLQQb3nUctdbjHRpZt5JyfQ3K5AM=",
+      "salt": "9Fy9fzfVlnvHYpcK62xNAg==",
+      "hash": "u+vre7drrC2A2N499idUbWZPV/UYpGOYBLHCzAFoPYI=",
       "iters": 100000
     },
     {
