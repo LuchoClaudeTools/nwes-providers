@@ -9,6 +9,15 @@
       "salt": "fGrcsFBRmYQ8B2cToJ+5Cw==",
       "hash": "BbqQBHMAgQvi1jLlLQQb3nUctdbjHRpZt5JyfQ3K5AM=",
       "iters": 100000
+    },
+    {
+      "user": "louis.hirsch",
+      "name": "Dr. Louis Hirsch, MD",
+      "salt": "rAJ2QSbo2IR6dggzxqizGg==",
+      "hash": "oaiIjuhkJHFokJbZ30aqNy2WKRDOFfxZTZPAOShw07M=",
+      "iters": 100000,
+      "canEdit": true,
+      "canVerify": true
     }
   ]
 }
