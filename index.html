@@ -1133,6 +1133,10 @@ const GH_BRANCH    = 'main';
 const CSV_FILE     = 'providers.csv';
 const RAW_URL      = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${CSV_FILE}`;
 const API_URL      = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${CSV_FILE}`;
+const USERS_FILE   = 'users.json';
+const USERS_RAW_URL= `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${USERS_FILE}`;
+const USERS_API_URL= `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${USERS_FILE}`;
+const PBKDF2_ITERS = 100000;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CSV PARSER
@@ -1243,6 +1247,60 @@ async function commitCSVToGitHub(csvText,msg){
   return (await putR.json()).commit.sha;
 }
 
+// ─── users.json read/write ────────────────────────────────────────────────
+async function fetchUsersFromGitHub(){
+  const url=USERS_RAW_URL+'?t='+Date.now();
+  const resp=await fetch(url,{cache:'no-store'});
+  if(resp.status===404)return null;
+  if(!resp.ok)throw new Error(`HTTP ${resp.status} fetching users.json`);
+  return resp.json();
+}
+async function commitUsersToGitHub(usersObj,msg){
+  const token=getGHToken();
+  if(!token)throw new Error('No GitHub token saved. Go to Admin → Settings & Sync to add your token.');
+  const hdrs={
+    'Authorization':`Bearer ${token}`,
+    'Accept':'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28',
+    'Content-Type':'application/json',
+  };
+  let sha=null;
+  const getR=await fetch(USERS_API_URL+`?ref=${GH_BRANCH}`,{headers:hdrs});
+  if(getR.ok){sha=(await getR.json()).sha;}
+  else if(getR.status!==404)throw new Error(`GitHub GET failed: ${getR.status}`);
+  const jsonText=JSON.stringify(usersObj,null,2)+'\n';
+  const b64=btoa(Array.from(new TextEncoder().encode(jsonText)).map(b=>String.fromCharCode(b)).join(''));
+  const body={message:msg||`Update users.json — ${new Date().toLocaleString()}`,content:b64,branch:GH_BRANCH};
+  if(sha)body.sha=sha;
+  const putR=await fetch(USERS_API_URL,{method:'PUT',headers:hdrs,body:JSON.stringify(body)});
+  if(!putR.ok){const err=await putR.text();throw new Error(`GitHub PUT failed (${putR.status}): ${err}`);}
+  return (await putR.json()).commit.sha;
+}
+
+// ─── password hashing (PBKDF2 via crypto.subtle) ──────────────────────────
+function _b64FromBytes(bytes){let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s);}
+function _bytesFromB64(b64){const s=atob(b64);const bytes=new Uint8Array(s.length);for(let i=0;i<s.length;i++)bytes[i]=s.charCodeAt(i);return bytes;}
+function generateSalt(){return _b64FromBytes(crypto.getRandomValues(new Uint8Array(16)));}
+async function hashPassword(password,saltB64,iters){
+  const enc=new TextEncoder();
+  const keyMaterial=await crypto.subtle.importKey('raw',enc.encode(password),{name:'PBKDF2'},false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits(
+    {name:'PBKDF2',salt:_bytesFromB64(saltB64),iterations:iters||PBKDF2_ITERS,hash:'SHA-256'},
+    keyMaterial,256
+  );
+  return _b64FromBytes(new Uint8Array(bits));
+}
+async function verifyPassword(password,userRecord){
+  // Hashed record path (real users in users.json)
+  if(userRecord.hash&&userRecord.salt){
+    const h=await hashPassword(password,userRecord.salt,userRecord.iters||PBKDF2_ITERS);
+    return h===userRecord.hash;
+  }
+  // Legacy plaintext fallback (USERS_DEFAULT only — used when users.json doesn't exist yet)
+  if(userRecord.pass!=null)return userRecord.pass===password;
+  return false;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // DB LAYER
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1251,24 +1309,65 @@ function loadDB(){return _db;}
 function saveDB(arr){_db=arr;try{localStorage.setItem('nwes_db_v1',JSON.stringify(arr));}catch(e){}}
 
 // ═══════════════════════════════════════════════════════════════════════════
-// USERS LAYER  (now includes canEdit / canVerify permissions)
+// USERS LAYER
+// Source of truth: users.json in the repo. Cached in _users (memory) and
+// localStorage (fast startup). Bootstrap fallback: USERS_DEFAULT — only used
+// when users.json is missing from the repo. Once any admin edit writes
+// users.json, the fallback is bypassed on every subsequent load.
 // ═══════════════════════════════════════════════════════════════════════════
 const USERS_DEFAULT=[
-  {user:"admin",     pass:"NWEye2024!",  name:"Admin",      canEdit:true, canVerify:true},
-  {user:"frontdesk", pass:"Columbus24",  name:"Front Desk", canEdit:true, canVerify:true},
-  {user:"scheduling",pass:"Referral24",  name:"Scheduling", canEdit:true, canVerify:true},
+  // Bootstrap-only. Plaintext here is a known tradeoff — this is a public repo,
+  // but this record is dead code once users.json exists. Change/remove after
+  // creating real users through Admin panel.
+  {user:"admin", pass:"NWEye2024!", name:"Admin", canEdit:true, canVerify:true},
 ];
+let _users=null;             // in-memory cache
+let _usersFromRepo=false;    // true once we've confirmed users.json exists in the repo
+
 function loadUsers(){
+  if(_users)return _users;
+  // Try localStorage cache for fast start (populated by prior successful GitHub fetch)
   const s=localStorage.getItem(USERS_KEY);
   if(s){
-    const arr=JSON.parse(s);
-    // migrate older records that lack permission fields
-    arr.forEach(u=>{if(u.canEdit===undefined)u.canEdit=true;if(u.canVerify===undefined)u.canVerify=true;});
-    return arr;
+    try{
+      const parsed=JSON.parse(s);
+      if(parsed&&Array.isArray(parsed.users)){_users=parsed.users;_usersFromRepo=true;return _users;}
+    }catch(e){}
   }
-  return JSON.parse(JSON.stringify(USERS_DEFAULT));
+  // Bootstrap fallback
+  _users=JSON.parse(JSON.stringify(USERS_DEFAULT));
+  return _users;
 }
-function saveUsers(arr){localStorage.setItem(USERS_KEY,JSON.stringify(arr));}
+
+async function loadUsersFromGitHub(){
+  try{
+    const data=await fetchUsersFromGitHub();
+    if(data&&Array.isArray(data.users)){
+      _users=data.users;
+      _usersFromRepo=true;
+      localStorage.setItem(USERS_KEY,JSON.stringify({version:1,users:_users}));
+      return _users;
+    }
+    // 404 or bad shape → keep whatever loadUsers() would produce
+    _users=null;
+    localStorage.removeItem(USERS_KEY);
+    return loadUsers();
+  }catch(e){
+    // Network error: stay with whatever we have (cache or fallback)
+    return loadUsers();
+  }
+}
+
+// Persist users: memory + localStorage + GitHub. Async.
+// On GitHub failure, local cache still updates so the UI reflects change,
+// but caller is warned via thrown error so it can inform the user.
+async function saveUsers(arr){
+  _users=arr;
+  const obj={version:1,users:arr};
+  try{localStorage.setItem(USERS_KEY,JSON.stringify(obj));}catch(e){}
+  await commitUsersToGitHub(obj,`Update users.json — ${new Date().toLocaleString()}`);
+  _usersFromRepo=true;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PERMISSION HELPERS
@@ -1732,12 +1831,18 @@ function checkSession(){
     snInit();
   }
 }
-function attemptLogin(e){
+async function attemptLogin(e){
   e.preventDefault();
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
+  const errEl=document.getElementById('loginError');
+  errEl.textContent='';
   const users=loadUsers();
-  const match=users.find(u=>u.user.toLowerCase()===user&&u.pass===pass);
+  let match=null;
+  for(const u of users){
+    if(u.user.toLowerCase()!==user)continue;
+    if(await verifyPassword(pass,u)){match=u;break;}
+  }
   if(match){
     const isAdmin=match.user.toLowerCase()==='admin';
     currentUser={
@@ -1749,13 +1854,12 @@ function attemptLogin(e){
     sessionStorage.setItem(SESSION_KEY,JSON.stringify(currentUser));
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('userGreeting').textContent=match.name;
-    document.getElementById('loginError').textContent='';
     const btn=document.getElementById('adminBtn');
     if(btn)btn.style.display=isAdmin?'':'none';
     // Load this user's notes from GitHub in background
     snInit();
   }else{
-    document.getElementById('loginError').textContent='Incorrect username or password.';
+    errEl.textContent='Incorrect username or password.';
     document.getElementById('loginPass').value='';
     document.getElementById('loginPass').focus();
   }
@@ -1827,7 +1931,7 @@ function renderUsersTable(){
       <td style="color:var(--text-light);font-size:.78rem">${fi+1}</td>
       <td><strong>${esc(u.user)}</strong>${isAdmin?` <span style="font-size:.67rem;color:var(--gold);background:rgba(200,151,58,0.12);border:1px solid rgba(200,151,58,0.3);padding:1px 7px;border-radius:20px;vertical-align:middle">Admin</span>`:''}</td>
       <td>${esc(u.name)}</td>
-      <td style="font-family:monospace;letter-spacing:.08em">${'•'.repeat(Math.min(u.pass.length,12))}</td>
+      <td style="font-family:monospace;letter-spacing:.08em">${'•'.repeat(u.pass?Math.min(u.pass.length,12):10)}</td>
       <td>${toggleEdit}</td>
       <td>${toggleVerify}</td>
       <td><div class="tbl-actions">
@@ -1839,17 +1943,23 @@ function renderUsersTable(){
   document.getElementById('userTableCount').textContent=`${filtered.length} of ${users.length} users`;
 }
 
-function toggleUserPerm(idx,field){
-  const users=loadUsers();
-  if(!users[idx]||users[idx].user.toLowerCase()==='admin')return;
+async function toggleUserPerm(idx,field){
+  const prevUsers=loadUsers();
+  if(!prevUsers[idx]||prevUsers[idx].user.toLowerCase()==='admin')return;
+  const users=JSON.parse(JSON.stringify(prevUsers));
   users[idx][field]=!users[idx][field];
-  saveUsers(users);
-  // If the currently logged-in user is the one being changed, refresh their session
-  if(currentUser&&currentUser.name===users[idx].name){
-    currentUser[field]=users[idx][field];
-    sessionStorage.setItem(SESSION_KEY,JSON.stringify(currentUser));
+  try{
+    await saveUsers(users);
+    if(currentUser&&currentUser.name===users[idx].name){
+      currentUser[field]=users[idx][field];
+      sessionStorage.setItem(SESSION_KEY,JSON.stringify(currentUser));
+    }
+    renderUsersTable();
+  }catch(e){
+    _users=prevUsers;
+    renderUsersTable();
+    alert('Toggle failed (GitHub push): '+e.message);
   }
-  renderUsersTable();
 }
 
 function openUserModal(idx){
@@ -1857,24 +1967,28 @@ function openUserModal(idx){
   document.getElementById('userModalTitle').textContent=idx!==undefined?'Edit User':'Add User';
   document.getElementById('userFormErr').textContent='';
   const permRow=document.getElementById('permRowEdit');
+  const passEl=document.getElementById('fPassword');
   if(idx!==undefined){
     const u=loadUsers()[idx];
     document.getElementById('fUserName').value=u.user;
     document.getElementById('fDisplayName').value=u.name;
-    document.getElementById('fPassword').value=u.pass;
+    // Never display a stored hash. For legacy plaintext (bootstrap only), pre-fill for convenience.
+    if(u.hash){passEl.value='';passEl.placeholder='Leave blank to keep current password';}
+    else{passEl.value=u.pass||'';passEl.placeholder='Password';}
     const isAdmin=u.user.toLowerCase()==='admin';
     permRow.style.display=isAdmin?'none':'';
     document.getElementById('fCanEdit').checked=isAdmin?true:(u.canEdit!==false);
     document.getElementById('fCanVerify').checked=isAdmin?true:(u.canVerify!==false);
   }else{
     ['fUserName','fDisplayName','fPassword'].forEach(id=>{document.getElementById(id).value='';});
+    passEl.placeholder='Password';
     permRow.style.display='';
     document.getElementById('fCanEdit').checked=true;
     document.getElementById('fCanVerify').checked=true;
   }
   document.getElementById('userModal').classList.add('open');
 }
-function saveUserModal(){
+async function saveUserModal(){
   const idx=document.getElementById('editUserIdx').value;
   const username=document.getElementById('fUserName').value.trim();
   const name=document.getElementById('fDisplayName').value.trim();
@@ -1882,27 +1996,53 @@ function saveUserModal(){
   const canEdit=document.getElementById('fCanEdit').checked;
   const canVerify=document.getElementById('fCanVerify').checked;
   const errEl=document.getElementById('userFormErr');
-  if(!username||!name||!pass){errEl.textContent='All fields are required.';return;}
-  const users=loadUsers();
-  if(idx===''){
+  const isNew=(idx==='');
+  if(!username||!name){errEl.textContent='Username and name are required.';return;}
+  if(isNew&&!pass){errEl.textContent='Password is required for new users.';return;}
+  if(pass&&pass.length<6){errEl.textContent='Password must be at least 6 characters.';return;}
+
+  const prevUsers=loadUsers();
+  const users=JSON.parse(JSON.stringify(prevUsers)); // work on a copy so we can roll back
+  if(isNew){
     if(users.find(u=>u.user.toLowerCase()===username.toLowerCase())){errEl.textContent='Username already exists.';return;}
-    users.push({user:username,pass,name,canEdit,canVerify});
+    const salt=generateSalt();
+    const hash=await hashPassword(pass,salt,PBKDF2_ITERS);
+    users.push({user:username,name,salt,hash,iters:PBKDF2_ITERS,canEdit,canVerify});
   }else{
     const i=parseInt(idx);
     const isAdmin=users[i].user.toLowerCase()==='admin';
-    users[i]={...users[i],user:username,pass,name,canEdit:isAdmin?true:canEdit,canVerify:isAdmin?true:canVerify};
+    const updated={...users[i],user:username,name,canEdit:isAdmin?true:canEdit,canVerify:isAdmin?true:canVerify};
+    if(pass){
+      const salt=generateSalt();
+      const hash=await hashPassword(pass,salt,PBKDF2_ITERS);
+      updated.salt=salt;updated.hash=hash;updated.iters=PBKDF2_ITERS;
+      delete updated.pass; // upgrade from legacy plaintext, if present
+    }
+    users[i]=updated;
   }
-  saveUsers(users);
-  closeModal('userModal');
-  renderUsersTable();
+  errEl.textContent='Saving…';
+  try{
+    await saveUsers(users);
+    closeModal('userModal');
+    renderUsersTable();
+  }catch(e){
+    _users=prevUsers; // roll back cache
+    errEl.textContent='Save failed (GitHub push): '+e.message;
+  }
 }
-function deleteUser(idx){
-  const users=loadUsers();
-  if(users[idx].user.toLowerCase()==='admin'){alert('The admin account cannot be removed.');return;}
-  if(!confirm(`Remove user "${users[idx].name}"?`))return;
+async function deleteUser(idx){
+  const prevUsers=loadUsers();
+  if(prevUsers[idx].user.toLowerCase()==='admin'){alert('The admin account cannot be removed.');return;}
+  if(!confirm(`Remove user "${prevUsers[idx].name}"?`))return;
+  const users=prevUsers.slice();
   users.splice(idx,1);
-  saveUsers(users);
-  renderUsersTable();
+  try{
+    await saveUsers(users);
+    renderUsersTable();
+  }catch(e){
+    _users=prevUsers;
+    alert('Delete failed (GitHub push): '+e.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2053,19 +2193,30 @@ async function adminPushData(){
     setSyncBar('Pushed to GitHub · '+new Date().toLocaleTimeString(),'ok');
   }catch(err){setSettingsStatus('Push failed: '+err.message,'err');}
 }
-function changeAdminPassword(){
+async function changeAdminPassword(){
   const newPass=document.getElementById('newAdminPass').value;
   const statusEl=document.getElementById('adminPassStatus');
   if(!newPass||newPass.length<6){statusEl.textContent='Password must be at least 6 characters.';statusEl.className='settings-status err';return;}
-  const users=loadUsers();
+  const prevUsers=loadUsers();
+  const users=JSON.parse(JSON.stringify(prevUsers));
   const adminIdx=users.findIndex(u=>u.user.toLowerCase()==='admin');
   if(adminIdx<0){statusEl.textContent='Admin user not found.';statusEl.className='settings-status err';return;}
-  users[adminIdx].pass=newPass;
-  saveUsers(users);
-  document.getElementById('newAdminPass').value='';
-  statusEl.textContent='Admin password updated. Please sign in again.';
-  statusEl.className='settings-status ok';
-  setTimeout(()=>signOut(),1800);
+  const salt=generateSalt();
+  const hash=await hashPassword(newPass,salt,PBKDF2_ITERS);
+  users[adminIdx]={...users[adminIdx],salt,hash,iters:PBKDF2_ITERS};
+  delete users[adminIdx].pass;
+  statusEl.textContent='Saving…';statusEl.className='settings-status';
+  try{
+    await saveUsers(users);
+    document.getElementById('newAdminPass').value='';
+    statusEl.textContent='Admin password updated. Please sign in again.';
+    statusEl.className='settings-status ok';
+    setTimeout(()=>signOut(),1800);
+  }catch(e){
+    _users=prevUsers;
+    statusEl.textContent='Save failed (GitHub push): '+e.message;
+    statusEl.className='settings-status err';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2087,6 +2238,10 @@ function esc(s){
 // INIT
 // ═══════════════════════════════════════════════════════════════════════════
 async function init(){
+  // Seed users cache from localStorage synchronously so checkSession has a table to work with
+  loadUsers();
+  // Refresh users from GitHub in the background — do not block login UI on it
+  loadUsersFromGitHub().catch(()=>{});
   checkSession();
   showLoadingOverlay('Loading provider directory…');
   setSyncBar('Loading provider data from GitHub…');
