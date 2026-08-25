@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "users": [
+    {
+      "user": "admin",
+      "name": "Admin",
+      "canEdit": true,
+      "canVerify": true,
+      "salt": "NDQFvKd/HifGNPtPmlaZxw==",
+      "hash": "9QU57hUHYm/dPI/+jaEcp4Kg9H7jKXedlMlR2blRk7k=",
+      "iters": 100000
+    }
+  ]
+}
