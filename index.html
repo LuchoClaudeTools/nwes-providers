@@ -218,6 +218,57 @@ a.website:hover { text-decoration: underline; }
 .admin-table td { padding:10px 14px; color:var(--text-dark); border-bottom:1px solid var(--border); vertical-align:middle; }
 .admin-table tr:last-child td { border-bottom:none; }
 .admin-table tr:hover td { background:#f8f9ff; }
+
+/* ── Data Review tab ── */
+.rv-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.rv-count { font-size:.8rem; color:var(--text-mid); margin-left:auto; }
+.rv-item { border:1px solid var(--border); border-left-width:4px; border-radius:8px; padding:14px 16px; margin-bottom:10px; background:white; }
+.rv-item.sev-high { border-left-color:#d64545; }
+.rv-item.sev-medium { border-left-color:#e0a020; }
+.rv-item.sev-low { border-left-color:#4a9ecf; }
+.rv-item.done { opacity:.55; background:#fafbfc; }
+.rv-item.done .rv-title { text-decoration:line-through; }
+.rv-head { display:flex; align-items:flex-start; gap:10px; }
+.rv-title { font-weight:700; font-size:.92rem; color:var(--text-dark); flex:1; }
+.rv-badge { font-size:.62rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:3px 8px; border-radius:20px; white-space:nowrap; }
+.rv-badge.sev-high { background:#fdeaea; color:#a32c2c; }
+.rv-badge.sev-medium { background:#fdf4e3; color:#8a6210; }
+.rv-badge.sev-low { background:#eaf4fb; color:#2b6a91; }
+.rv-affects { font-size:.76rem; color:var(--text-light); margin-top:5px; font-style:italic; }
+.rv-detail { font-size:.85rem; color:var(--text-mid); margin-top:9px; line-height:1.55; }
+.rv-action { font-size:.85rem; color:var(--text-dark); margin-top:9px; line-height:1.55; padding:9px 12px; background:#f4f7fb; border-radius:6px; }
+.rv-action strong { color:var(--navy); }
+.rv-foot { display:flex; gap:10px; align-items:center; margin-top:11px; }
+.rv-date { font-size:.72rem; color:var(--text-light); margin-left:auto; }
+.btn-rv { padding:5px 13px; border-radius:6px; border:1px solid var(--border); background:white; font-family:'DM Sans',sans-serif; font-size:.76rem; font-weight:600; cursor:pointer; color:var(--text-mid); }
+.btn-rv:hover { background:#f0f3f8; }
+.btn-rv.primary { background:var(--navy); color:white; border-color:var(--navy); }
+
+/* ── Resume Docs tab ── */
+.rd-layout { display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap; }
+.rd-list { flex:0 0 260px; min-width:220px; }
+.rd-file { padding:10px 12px; border:1px solid var(--border); border-radius:7px; margin-bottom:7px; cursor:pointer; background:white; font-size:.82rem; }
+.rd-file:hover { background:#f4f7fb; }
+.rd-file.active { background:var(--navy); color:white; border-color:var(--navy); }
+.rd-file .rd-meta { font-size:.7rem; opacity:.7; margin-top:3px; }
+.rd-view { flex:1; min-width:320px; border:1px solid var(--border); border-radius:8px; padding:20px 24px; background:white; max-height:70vh; overflow-y:auto; }
+.rd-view h1 { font-size:1.25rem; color:var(--navy); margin:0 0 12px; }
+.rd-view h2 { font-size:1.05rem; color:var(--navy); margin:22px 0 9px; padding-bottom:5px; border-bottom:1px solid var(--border); }
+.rd-view h3 { font-size:.92rem; color:var(--text-dark); margin:17px 0 7px; }
+.rd-view p { font-size:.86rem; line-height:1.62; color:var(--text-mid); margin:0 0 11px; }
+.rd-view ul, .rd-view ol { font-size:.86rem; line-height:1.62; color:var(--text-mid); margin:0 0 11px; padding-left:22px; }
+.rd-view li { margin-bottom:4px; }
+.rd-view code { background:#f0f3f8; padding:1px 5px; border-radius:4px; font-size:.82em; font-family:ui-monospace,Menlo,monospace; }
+.rd-view pre { background:#f6f8fa; padding:12px 14px; border-radius:7px; overflow-x:auto; margin:0 0 12px; }
+.rd-view pre code { background:none; padding:0; }
+.rd-view blockquote { border-left:3px solid var(--border); padding-left:13px; margin:0 0 11px; color:var(--text-light); }
+.rd-view hr { border:none; border-top:1px solid var(--border); margin:18px 0; }
+.rd-view a { color:var(--teal); }
+.md-tablewrap { overflow-x:auto; margin:0 0 13px; }
+.md-table { border-collapse:collapse; font-size:.82rem; width:100%; }
+.md-table th { background:var(--navy); color:white; padding:7px 11px; text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; }
+.md-table td { padding:7px 11px; border-bottom:1px solid var(--border); color:var(--text-mid); }
+.rd-empty { color:var(--text-light); font-size:.85rem; padding:30px 0; text-align:center; }
 .tbl-actions { display:flex; gap:6px; }
 .btn-edit,.btn-del { padding:4px 11px; border-radius:6px; border:1px solid; font-size:.74rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; }
 .btn-edit { border-color:var(--teal); color:var(--teal); background:rgba(26,127,142,0.05); }
@@ -501,9 +552,11 @@ a.website:hover { text-decoration: underline; }
   </div>
   <div class="admin-body">
     <div class="admin-tabs">
-      <div class="admin-tab active" onclick="switchTab('users')">Users &amp; Permissions</div>
-      <div class="admin-tab" onclick="switchTab('providers')">Providers</div>
-      <div class="admin-tab" onclick="switchTab('settings')">Settings &amp; Sync</div>
+      <div class="admin-tab active" data-tab="users" onclick="switchTab('users')">Users &amp; Permissions</div>
+      <div class="admin-tab" data-tab="providers" onclick="switchTab('providers')">Providers</div>
+      <div class="admin-tab" data-tab="review" onclick="switchTab('review')">Data Review</div>
+      <div class="admin-tab" data-tab="resume" onclick="switchTab('resume')">Resume Docs</div>
+      <div class="admin-tab" data-tab="settings" onclick="switchTab('settings')">Settings &amp; Sync</div>
     </div>
 
     <!-- ── Users tab ── -->
@@ -553,6 +606,68 @@ a.website:hover { text-decoration: underline; }
         </table>
       </div>
       <div class="tbl-footer" id="providerTableCount"></div>
+    </div>
+
+    <!-- ── Data Review tab ── -->
+    <div class="admin-panel" id="tab-review">
+      <div class="section-desc" style="margin-bottom:14px">
+        Known inconsistencies and unfinished items in the provider directory — things that were
+        found but could not be resolved from public sources, and need a phone call, a visit, or a
+        decision. Stored in <code>review-items.json</code> in the repo, so this list is the same on
+        every computer.
+      </div>
+      <div class="rv-toolbar">
+        <select id="rvFilter" onchange="renderReviewList()">
+          <option value="open">Open items</option>
+          <option value="all">All items</option>
+          <option value="resolved">Resolved items</option>
+        </select>
+        <button class="btn-rv" onclick="loadReviewItems(true)">&#8635; Refresh</button>
+        <button class="btn-rv primary" onclick="toggleReviewAddForm()">+ Add Item</button>
+        <span class="rv-count" id="rvCount"></span>
+      </div>
+      <div id="rvAddForm" style="display:none;border:1px solid var(--border);border-radius:8px;padding:15px;margin-bottom:14px;background:#fafbfc">
+        <div class="form-row"><label>Title</label><input type="text" id="rvNewTitle" placeholder="Short description of the problem"></div>
+        <div class="form-row"><label>Severity</label>
+          <select id="rvNewSeverity"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
+        </div>
+        <div class="form-row"><label>Affects</label><input type="text" id="rvNewAffects" placeholder="e.g. Row 24 — Dr. Danford, Vision Professionals"></div>
+        <div class="form-row"><label>Detail</label><textarea id="rvNewDetail" rows="3" placeholder="What is wrong, and how do you know?"></textarea></div>
+        <div class="form-row"><label>Action</label><textarea id="rvNewAction" rows="2" placeholder="What needs to happen to settle it?"></textarea></div>
+        <div class="rv-foot">
+          <button class="btn-rv primary" onclick="addReviewItem()">Save Item</button>
+          <button class="btn-rv" onclick="toggleReviewAddForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="settings-status" id="rvStatus"></div>
+      <div id="rvList"></div>
+    </div>
+
+    <!-- ── Resume Docs tab ── -->
+    <div class="admin-panel" id="tab-resume">
+      <div class="section-desc" style="margin-bottom:14px">
+        Working notes saved to the <code>resume/</code> folder in the repo. Whenever we finish a
+        session, the latest resume document is committed here — so you can sign in from any
+        computer and pick up exactly where we left off.
+      </div>
+      <div class="rv-toolbar">
+        <button class="btn-rv" onclick="loadResumeList(true)">&#8635; Refresh</button>
+        <button class="btn-rv primary" onclick="toggleResumeAddForm()">+ Save New Doc</button>
+        <span class="rv-count" id="rdCount"></span>
+      </div>
+      <div id="rdAddForm" style="display:none;border:1px solid var(--border);border-radius:8px;padding:15px;margin-bottom:14px;background:#fafbfc">
+        <div class="form-row"><label>Filename</label><input type="text" id="rdNewName" placeholder="2026-09-15-resume"><div style="font-size:.72rem;color:var(--text-light);margin-top:4px">Saved into <code>resume/</code> as a <code>.md</code> file. Use a date prefix so it sorts.</div></div>
+        <div class="form-row"><label>Markdown</label><textarea id="rdNewBody" rows="12" placeholder="# Resume notes&#10;&#10;Paste the markdown here…"></textarea></div>
+        <div class="rv-foot">
+          <button class="btn-rv primary" onclick="saveResumeDoc()">Save to Repo</button>
+          <button class="btn-rv" onclick="toggleResumeAddForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="settings-status" id="rdStatus"></div>
+      <div class="rd-layout">
+        <div class="rd-list" id="rdList"></div>
+        <div class="rd-view" id="rdView"><div class="rd-empty">Select a document on the left to read it.</div></div>
+      </div>
     </div>
 
     <!-- ── Settings tab ── -->
@@ -1137,6 +1252,11 @@ const USERS_FILE   = 'users.json';
 const USERS_RAW_URL= `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${USERS_FILE}`;
 const USERS_API_URL= `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${USERS_FILE}`;
 const PBKDF2_ITERS = 100000;
+const REVIEW_FILE    = 'review-items.json';
+const REVIEW_RAW_URL = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${REVIEW_FILE}`;
+const REVIEW_API_URL = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${REVIEW_FILE}`;
+const RESUME_DIR     = 'resume';
+const RESUME_API_DIR = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${RESUME_DIR}`;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CSV PARSER
@@ -1884,6 +2004,305 @@ async function signOut(){
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// GENERIC FILE COMMIT
+// Same contents-API dance as commitCSVToGitHub/commitUsersToGitHub, but for
+// any path. Used by the Data Review and Resume Docs tabs.
+// ═══════════════════════════════════════════════════════════════════════════
+async function commitFileToGitHub(apiUrl,text,msg){
+  const token=getGHToken();
+  if(!token)throw new Error('No GitHub token saved. Go to Admin → Settings & Sync to add your token.');
+  const hdrs={
+    'Authorization':`Bearer ${token}`,
+    'Accept':'application/vnd.github+json',
+    'X-GitHub-Api-Version':'2022-11-28',
+    'Content-Type':'application/json',
+  };
+  let sha=null;
+  const getR=await fetch(apiUrl+`?ref=${GH_BRANCH}`,{headers:hdrs});
+  if(getR.ok){sha=(await getR.json()).sha;}
+  else if(getR.status!==404)throw new Error(`GitHub GET failed: ${getR.status}`);
+  const b64=btoa(Array.from(new TextEncoder().encode(text)).map(b=>String.fromCharCode(b)).join(''));
+  const body={message:msg,content:b64,branch:GH_BRANCH};
+  if(sha)body.sha=sha;
+  const putR=await fetch(apiUrl,{method:'PUT',headers:hdrs,body:JSON.stringify(body)});
+  if(!putR.ok){const err=await putR.text();throw new Error(`GitHub PUT failed (${putR.status}): ${err}`);}
+  return (await putR.json()).commit.sha;
+}
+function ghHeaders(){
+  const t=getGHToken();
+  const h={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  if(t)h['Authorization']=`Bearer ${t}`;   // optional: raises the API rate limit
+  return h;
+}
+function setStatus(id,msg,state){
+  const el=document.getElementById(id);
+  if(el){el.textContent=msg;el.className='settings-status '+(state||'');}
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — Data Review tab
+// Known inconsistencies / unfinished items, stored in review-items.json so the
+// list is identical on every computer.
+// ═══════════════════════════════════════════════════════════════════════════
+let _review=null;
+
+async function loadReviewItems(force){
+  setStatus('rvStatus','Loading review items…');
+  try{
+    const resp=await fetch(REVIEW_RAW_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(resp.status===404){_review={version:1,items:[]};renderReviewList();setStatus('rvStatus','No review-items.json in the repo yet — add an item to create it.');return;}
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    _review=await resp.json();
+    if(!Array.isArray(_review.items))_review.items=[];
+    renderReviewList();
+    setStatus('rvStatus','','');
+  }catch(e){
+    setStatus('rvStatus','Could not load review items: '+e.message,'error');
+  }
+}
+
+function renderReviewList(){
+  const wrap=document.getElementById('rvList');
+  if(!wrap)return;
+  if(!_review){wrap.innerHTML='<div class="rd-empty">Loading…</div>';return;}
+  const mode=document.getElementById('rvFilter').value;
+  const rank={high:0,medium:1,low:2};
+  const items=_review.items
+    .filter(it=>mode==='all'?true:(mode==='resolved'?it.status==='resolved':it.status!=='resolved'))
+    .slice()
+    .sort((a,b)=>(rank[a.severity]??3)-(rank[b.severity]??3));
+  const openCount=_review.items.filter(it=>it.status!=='resolved').length;
+  document.getElementById('rvCount').textContent=
+    `${openCount} open · ${_review.items.length} total`;
+  if(!items.length){wrap.innerHTML='<div class="rd-empty">Nothing here.</div>';return;}
+  wrap.innerHTML=items.map(it=>{
+    const sev=['high','medium','low'].includes(it.severity)?it.severity:'low';
+    const done=it.status==='resolved';
+    return `<div class="rv-item sev-${sev}${done?' done':''}">
+      <div class="rv-head">
+        <div class="rv-title">${esc(it.title||'(untitled)')}</div>
+        <span class="rv-badge sev-${sev}">${sev}</span>
+      </div>
+      ${it.affects?`<div class="rv-affects">${esc(it.affects)}</div>`:''}
+      ${it.detail?`<div class="rv-detail">${esc(it.detail)}</div>`:''}
+      ${it.action?`<div class="rv-action"><strong>Next step:</strong> ${esc(it.action)}</div>`:''}
+      <div class="rv-foot">
+        <button class="btn-rv${done?'':' primary'}" data-id="${esc(it.id)}" onclick="toggleReviewStatus(this.dataset.id)">
+          ${done?'Reopen':'Mark Resolved'}
+        </button>
+        <span class="rv-date">${done&&it.resolvedAt?'Resolved '+esc(it.resolvedAt):'Added '+esc(it.added||'')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function persistReview(msg){
+  _review.updated=new Date().toISOString().slice(0,10);
+  await commitFileToGitHub(REVIEW_API_URL,JSON.stringify(_review,null,2)+'\n',msg);
+}
+
+async function toggleReviewStatus(id){
+  const it=_review.items.find(x=>x.id===id);
+  if(!it)return;
+  const wasResolved=it.status==='resolved';
+  it.status=wasResolved?'open':'resolved';
+  if(it.status==='resolved')it.resolvedAt=new Date().toISOString().slice(0,10);
+  else delete it.resolvedAt;
+  renderReviewList();
+  setStatus('rvStatus','Saving…');
+  try{
+    await persistReview(`Review item ${id}: ${it.status}`);
+    setStatus('rvStatus',`Saved — "${it.title}" is now ${it.status}.`,'ok');
+  }catch(e){
+    it.status=wasResolved?'resolved':'open';   // roll back the local change
+    renderReviewList();
+    setStatus('rvStatus','Could not save: '+e.message,'error');
+  }
+}
+
+function toggleReviewAddForm(){
+  const f=document.getElementById('rvAddForm');
+  f.style.display=f.style.display==='none'?'':'none';
+}
+
+async function addReviewItem(){
+  const title=document.getElementById('rvNewTitle').value.trim();
+  if(!title){setStatus('rvStatus','Give the item a title.','error');return;}
+  if(!_review)_review={version:1,items:[]};
+  const n=_review.items.length+1;
+  _review.items.push({
+    id:'rv-'+String(n).padStart(3,'0')+'-'+Date.now().toString(36),
+    title,
+    severity:document.getElementById('rvNewSeverity').value,
+    status:'open',
+    added:new Date().toISOString().slice(0,10),
+    affects:document.getElementById('rvNewAffects').value.trim(),
+    detail:document.getElementById('rvNewDetail').value.trim(),
+    action:document.getElementById('rvNewAction').value.trim(),
+  });
+  renderReviewList();
+  setStatus('rvStatus','Saving…');
+  try{
+    await persistReview(`Add review item: ${title}`);
+    ['rvNewTitle','rvNewAffects','rvNewDetail','rvNewAction'].forEach(i=>document.getElementById(i).value='');
+    toggleReviewAddForm();
+    setStatus('rvStatus','Item added.','ok');
+  }catch(e){
+    _review.items.pop();
+    renderReviewList();
+    setStatus('rvStatus','Could not save: '+e.message,'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ADMIN — Resume Docs tab
+// Session notes committed to resume/ in the repo, readable from any computer.
+// ═══════════════════════════════════════════════════════════════════════════
+let _resumeFiles=[];
+
+async function loadResumeList(force){
+  setStatus('rdStatus','Loading documents…');
+  try{
+    const resp=await fetch(RESUME_API_DIR+`?ref=${GH_BRANCH}&t=`+Date.now(),{headers:ghHeaders(),cache:'no-store'});
+    if(resp.status===404){
+      _resumeFiles=[];
+      document.getElementById('rdList').innerHTML='<div class="rd-empty">No resume/ folder yet.</div>';
+      setStatus('rdStatus','No resume/ folder in the repo yet — save a document to create it.');
+      return;
+    }
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const data=await resp.json();
+    _resumeFiles=(Array.isArray(data)?data:[])
+      .filter(f=>f.type==='file'&&/\.md$/i.test(f.name))
+      .sort((a,b)=>b.name.localeCompare(a.name));   // newest first, given date-prefixed names
+    renderResumeList();
+    setStatus('rdStatus','','');
+    if(_resumeFiles.length)viewResumeDoc(_resumeFiles[0].name);
+  }catch(e){
+    setStatus('rdStatus','Could not load documents: '+e.message,'error');
+  }
+}
+
+function renderResumeList(){
+  document.getElementById('rdCount').textContent=
+    `${_resumeFiles.length} document${_resumeFiles.length===1?'':'s'}`;
+  document.getElementById('rdList').innerHTML=_resumeFiles.map((f,i)=>
+    `<div class="rd-file${i===0?' active':''}" data-name="${esc(f.name)}" onclick="viewResumeDoc(this.dataset.name)">
+       ${esc(f.name.replace(/\.md$/i,''))}
+       <div class="rd-meta">${(f.size/1024).toFixed(1)} KB</div>
+     </div>`).join('');
+}
+
+async function viewResumeDoc(name){
+  const f=_resumeFiles.find(x=>x.name===name);
+  if(!f)return;
+  document.querySelectorAll('.rd-file').forEach(el=>el.classList.toggle('active',el.dataset.name===name));
+  const view=document.getElementById('rdView');
+  view.innerHTML='<div class="rd-empty">Loading…</div>';
+  try{
+    const resp=await fetch(f.download_url+'?t='+Date.now(),{cache:'no-store'});
+    if(!resp.ok)throw new Error(`HTTP ${resp.status}`);
+    const md=await resp.text();
+    view.innerHTML=`<div class="rv-foot" style="margin:0 0 14px">
+        <button class="btn-rv" onclick="copyResumeDoc()">Copy Markdown</button>
+        <a class="btn-rv" href="${esc(f.download_url)}" target="_blank" rel="noopener" style="text-decoration:none">Open Raw</a>
+      </div>`+renderMarkdown(md);
+    view._raw=md;
+  }catch(e){
+    view.innerHTML=`<div class="rd-empty">Could not load: ${esc(e.message)}</div>`;
+  }
+}
+
+function copyResumeDoc(){
+  const raw=document.getElementById('rdView')._raw||'';
+  navigator.clipboard.writeText(raw)
+    .then(()=>setStatus('rdStatus','Markdown copied to clipboard.','ok'))
+    .catch(()=>setStatus('rdStatus','Could not copy — use "Open Raw" instead.','error'));
+}
+
+function toggleResumeAddForm(){
+  const f=document.getElementById('rdAddForm');
+  f.style.display=f.style.display==='none'?'':'none';
+}
+
+async function saveResumeDoc(){
+  let name=document.getElementById('rdNewName').value.trim();
+  const body=document.getElementById('rdNewBody').value;
+  if(!name){setStatus('rdStatus','Give the document a filename.','error');return;}
+  if(!body.trim()){setStatus('rdStatus','The document is empty.','error');return;}
+  name=name.replace(/[^a-z0-9._-]/gi,'-').replace(/\.md$/i,'')+'.md';
+  setStatus('rdStatus','Saving…');
+  try{
+    await commitFileToGitHub(
+      `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${RESUME_DIR}/${name}`,
+      body.endsWith('\n')?body:body+'\n',
+      `Add resume doc: ${name}`);
+    document.getElementById('rdNewName').value='';
+    document.getElementById('rdNewBody').value='';
+    toggleResumeAddForm();
+    setStatus('rdStatus',`Saved resume/${name}.`,'ok');
+    await loadResumeList(true);
+  }catch(e){
+    setStatus('rdStatus','Could not save: '+e.message,'error');
+  }
+}
+
+// ── Minimal markdown renderer (no external libraries on this site) ─────────
+function _mdInline(s){
+  s=esc(s);
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/(^|[^*])\*([^*\s][^*]*)\*/g,'$1<em>$2</em>');
+  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+function renderMarkdown(md){
+  const lines=String(md).replace(/\r\n/g,'\n').split('\n');
+  const out=[]; let para=[]; let i=0;
+  // Soft line breaks are kept as <br> — these are hand-written notes, not prose.
+  const flush=()=>{ if(para.length){out.push('<p>'+para.map(_mdInline).join('<br>')+'</p>');para=[];} };
+  const cells=r=>r.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>_mdInline(c.trim()));
+  while(i<lines.length){
+    const ln=lines[i];
+    if(!ln.trim()){flush();i++;continue;}
+    if(/^```/.test(ln)){
+      flush();i++;const code=[];
+      while(i<lines.length&&!/^```/.test(lines[i]))code.push(lines[i++]);
+      i++;out.push('<pre><code>'+esc(code.join('\n'))+'</code></pre>');continue;
+    }
+    const h=ln.match(/^(#{1,6})\s+(.*)$/);
+    if(h){flush();out.push(`<h${h[1].length}>${_mdInline(h[2])}</h${h[1].length}>`);i++;continue;}
+    if(/^\s*(-{3,}|_{3,}|\*{3,})\s*$/.test(ln)){flush();out.push('<hr>');i++;continue;}
+    if(ln.includes('|')&&i+1<lines.length&&/^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i+1])){
+      flush();
+      const head=cells(ln); i+=2; const body=[];
+      while(i<lines.length&&lines[i].includes('|')&&lines[i].trim())body.push(cells(lines[i++]));
+      out.push('<div class="md-tablewrap"><table class="md-table"><thead><tr>'+
+        head.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>'+
+        body.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('')+
+        '</tbody></table></div>');
+      continue;
+    }
+    if(/^\s*([-*+]|\d+\.)\s+/.test(ln)){
+      flush();
+      const ordered=/^\s*\d+\.\s/.test(ln); const items=[];
+      while(i<lines.length&&/^\s*([-*+]|\d+\.)\s+/.test(lines[i]))
+        items.push(_mdInline(lines[i++].replace(/^\s*([-*+]|\d+\.)\s+/,'')));
+      out.push(`<${ordered?'ol':'ul'}>`+items.map(t=>`<li>${t}</li>`).join('')+`</${ordered?'ol':'ul'}>`);
+      continue;
+    }
+    if(/^\s*>\s?/.test(ln)){
+      flush();const q=[];
+      while(i<lines.length&&/^\s*>\s?/.test(lines[i]))q.push(lines[i++].replace(/^\s*>\s?/,''));
+      out.push('<blockquote>'+_mdInline(q.join(' '))+'</blockquote>');continue;
+    }
+    para.push(ln.trim()); i++;
+  }
+  flush();
+  return out.join('\n');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ADMIN — Navigation & Tabs
 // ═══════════════════════════════════════════════════════════════════════════
 function goToAdmin(){
@@ -1898,10 +2317,12 @@ function goToAdmin(){
 }
 function goToMain(){document.getElementById('adminPage').classList.remove('visible');}
 function switchTab(tab){
-  const tabs=['users','providers','settings'];
-  document.querySelectorAll('.admin-tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===tab));
+  // Matches on data-tab rather than DOM order, so tabs can be added or reordered freely.
+  document.querySelectorAll('.admin-tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===tab));
   document.querySelectorAll('.admin-panel').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='review'&&!_review)loadReviewItems();
+  if(tab==='resume'&&!_resumeFiles.length)loadResumeList();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

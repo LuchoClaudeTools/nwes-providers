@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "updated": "2026-08-28",
+  "items": [
+    {
+      "id": "rv-001",
+      "title": "Complete EyeCare West may have been acquired",
+      "severity": "high",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Rows 30-31 — Hutchison, Cockerill (5141 W Broad St)",
+      "detail": "compeyewest.com now 301-redirects to mosesmousereye.com (Moses-Mouser & Associates, Grove City / Canal Winchester). There is no public announcement of an acquisition anywhere, and the Moses-Mouser site never mentions Complete EyeCare West, Hutchison or Cockerill. Either the practice was absorbed, or a domain was repointed by mistake.",
+      "action": "Call (614) 878-1571 and ask whether the practice is still operating under its own name and who owns it now. If it was absorbed, merge rows 30-31 into the Moses-Mouser entries."
+    },
+    {
+      "id": "rv-002",
+      "title": "North Star Vision Center may be closed",
+      "severity": "high",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Row 14 — Strohl, Robert D., O.D. (4885 Olentangy River Rd)",
+      "detail": "A North Star Vision Center at 1049 Bethel Rd shows as CLOSED on Yelp as of Feb 2026. The Olentangy River Rd office still appears in current business directories, but nothing confirms it is trading. These may be two locations of the same practice, one of which shut.",
+      "action": "Call (614) 326-1830 before visiting. Do not hand this address to anyone until confirmed."
+    },
+    {
+      "id": "rv-003",
+      "title": "33 rows have no distance from either NWES office",
+      "severity": "medium",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Every address added on 8/28 — all new practices and satellite offices",
+      "detail": "distMain and distEast were deliberately left blank rather than estimated, because guessing mileage that staff then rely on in the field is worse than showing nothing. Blank renders as an empty distance badge.",
+      "action": "Run a mapping pass from the NWES main office and the New Albany office, then fill distMain/distEast for those rows."
+    },
+    {
+      "id": "rv-004",
+      "title": "Dr. Julia Geldis is listed as retired",
+      "severity": "medium",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Row 36 — Geldis, Julia, O.D., F.A.A.O. (CECCO)",
+      "detail": "CECCO's own website lists Dr. Geldis under retired doctors, alongside Dr. Wesley Harnish and Dr. George Chioran. She is still an active row in the directory.",
+      "action": "Confirm with CECCO, then either delete the row or annotate it as retired so nobody makes an outreach visit."
+    },
+    {
+      "id": "rv-005",
+      "title": "Dr. Jenny Tran is filed under the wrong practice",
+      "severity": "medium",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Row 29 — Tran, Jenny, O.D. (Clarkson Eyecare — Reynoldsburg)",
+      "detail": "The directory places Dr. Tran at Clarkson Reynoldsburg. Both AEG Vision practice websites list her instead — at Professional Vision Services (Hilliard) and at Winchester Vision Care (Canal Winchester). Clarkson's location pages do not name individual doctors at all, so the original attribution cannot be checked against a source.",
+      "action": "Confirm where she actually practises, then delete whichever row is wrong. Rows for the two AEG offices were added on 8/28."
+    },
+    {
+      "id": "rv-006",
+      "title": "Admin edit form can silently destroy field values",
+      "severity": "high",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "index.html — provider edit modal (specialty, ownership, catComanage, glaucTC)",
+      "detail": "These four fields are dropdowns. When a record holds a value that is not one of the valid options, the dropdown falls back to its first option and saves that instead — with no warning. This is how the 8/25 edit to Travis, Beth A. wiped that row's distMain and distEast. The column-shift bug is fixed, so no record currently holds an invalid value, but the failure mode is still in the code.",
+      "action": "Make the edit form refuse to save, or warn, when a loaded value does not match any dropdown option."
+    },
+    {
+      "id": "rv-007",
+      "title": "Watch for the ? characters coming back",
+      "severity": "medium",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "providers.csv — em dashes and star ratings",
+      "detail": "The file had 40 literal ? characters where em dashes and stars belonged, e.g. 'Eye Designs ? New Albany' and 'Rated 4.9 ? (417 reviews)'. Those were restored on 8/28. The site's own commit path uses TextEncoder and is UTF-8 safe, so an external tool was the likely cause.",
+      "action": "If the ? characters reappear after somebody edits a provider through the admin panel, then the site itself is the culprit and the save path needs investigating."
+    },
+    {
+      "id": "rv-008",
+      "title": "Co-management flags are blank on newly added rows",
+      "severity": "low",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Most rows added 8/28",
+      "detail": "catComanage and glaucTC were only set to Yes where a practice website explicitly said so. Everywhere else they were left blank, which renders as the yellow/unknown badge. This is deliberate — an unverified Yes is worse than a visible blank.",
+      "action": "Fill these in as you meet practices and learn their actual co-management posture. This is the field work the tool exists for."
+    },
+    {
+      "id": "rv-009",
+      "title": "Three doctors are missing first names",
+      "severity": "low",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Dr. Siegel (AcuSight), Dr. Harter (MyEyeDr.), Dr. Carey (Grace Vision)",
+      "detail": "Their practice websites list them by surname only. Dr. Carey is probably Jackson Carey, O.D., who also appears on the Columbus Ophthalmology Associates roster and did a residency there — but that link is inferred, not confirmed.",
+      "action": "Pick up first names on the next visit or phone call."
+    },
+    {
+      "id": "rv-010",
+      "title": "Phone number conflict between two practices",
+      "severity": "low",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Row 14 (North Star) and row 17 (Pinnacle Eyecare)",
+      "detail": "(614) 326-1830 has been associated with both practices across different sources. Pinnacle's own website gives (614) 810-2020, which is what the directory now uses for row 17.",
+      "action": "Confirm North Star's real number, particularly since that practice may be closed (see rv-002)."
+    },
+    {
+      "id": "rv-011",
+      "title": "Test account is still live in the directory",
+      "severity": "low",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Row 45 — Ride, WC, O.D. / Test Optometry Clinic, 222 Test Blvd",
+      "detail": "Created to test the optometrist self-validation email flow end to end. It is still searchable alongside real providers.",
+      "action": "Delete it once the self-update email flow no longer needs a test subject."
+    },
+    {
+      "id": "rv-012",
+      "title": "Razzano Vision Care claims four locations",
+      "severity": "low",
+      "status": "open",
+      "added": "2026-08-28",
+      "affects": "Rows 18-19 — Target Optical / Razzano Vision Care",
+      "detail": "The practice states it has four locations. Only the Morse Crossing office is in the directory; the other three were not identifiable from public sources.",
+      "action": "Ask Dr. Razzano for the other three addresses."
+    }
+  ]
+}
