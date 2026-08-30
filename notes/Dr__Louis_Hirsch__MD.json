@@ -8,11 +8,11 @@
     }
   },
   "provider_50": {
-    "text": "[] Circle back: \ngenetic testing options. does he do LAL? LASIK comanagment?",
-    "defaultOpen": false,
+    "text": "test\n[] Circle back: \ngenetic testing options. does he do LAL? LASIK comanagment?",
+    "defaultOpen": true,
     "pos": {
-      "x": 878,
-      "y": 62
+      "x": 979,
+      "y": 129
     }
   }
 }
