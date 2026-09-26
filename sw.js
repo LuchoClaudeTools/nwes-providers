@@ -1,5 +1,5 @@
 // Offline cache for handouts.html only. Bump VERSION when handouts.html changes.
-const VERSION = "handouts-v1";
+const VERSION = "handouts-v2";
 const FILES = ["handouts.html", "handouts-icon.png"];
 
 self.addEventListener("install", e => {

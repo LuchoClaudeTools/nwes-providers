@@ -85,7 +85,13 @@
   .box { width: 26px; height: 26px; flex: 0 0 26px; border: 2px solid var(--line); border-radius: 6px; }
   .num { flex: 0 0 auto; min-width: 44px; height: 34px; padding: 0 8px; border-radius: 8px; background: var(--num-bg); color: var(--num-ink); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; justify-content: center; }
   .txt { flex: 1; }
-  .sub { display: block; font-size: 15px; color: var(--muted); font-weight: 400; margin-top: 3px; }
+  .sub { display: block; font-size: 15px; color: var(--muted); font-weight: 400; margin-top: 5px; }
+  .sub a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; padding: 4px 2px; font-weight: 600; }
+  .sub .dot { margin: 0 8px; color: var(--line); }
+  .vlinks { max-width: 860px; margin: 0 auto 16px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .vlinks span { width: 100%; font-size: 14px; color: var(--muted); }
+  .vlinks a { font-size: 17px; font-weight: 600; color: var(--accent); background: var(--num-bg); border-radius: 8px; padding: 10px 14px; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
+  .vlinks a:active { background: var(--accent); color: var(--accent-ink); }
   ul.list li.on .row { background: var(--pick); font-weight: 600; }
   ul.list li.on .box { background: var(--pick-line); border-color: var(--pick-line); position: relative; }
   ul.list li.on .box::after { content: ""; position: absolute; left: 8px; top: 3px; width: 6px; height: 13px; border: solid #3A2C00; border-width: 0 3px 3px 0; transform: rotate(45deg); }
@@ -178,7 +184,13 @@
     { n: 16, t: "Minimally Invasive Glaucoma Surgery (MIGS)", c: "P", file: "MIGS_Pt__Handout_FINAL.pdf" },
     { n: 17, t: "Omni Canaloplasty and Goniotomy", c: "P", file: "Omni" },
     { n: 18, t: "Patient Education QR Codes", c: "G", file: "Patient Education QR Codes",
-      sub: ["Cataract", "Laser cataract surgery", "Dry eye", "Glaucoma", "Common eye conditions"] },
+      links: [
+        ["Cataract", "https://www.aao.org/eye-health/diseases/what-are-cataracts"],
+        ["Laser cataract surgery", "https://youtu.be/fblKqBCQSWY"],
+        ["Dry eye", "https://www.aao.org/eye-health/diseases/what-is-dry-eye"],
+        ["Glaucoma", "https://www.aao.org/eye-health/diseases/what-is-glaucoma"],
+        ["Common eye conditions", "https://www.aao.org/eye-health"],
+      ] },
     { n: 19, t: "Posterior Capsulotomy (YAG Laser)", c: "P", file: "Posterior-Capsulotomy.pdf" },
     { n: 20, t: "Pseudoexfoliation", c: "D", file: "AGS-Handout-Pseudoexfoliation.pdf" },
     { n: 21, t: "Regular Eye Exams", c: "G", file: "Regular-Eye-Exams-2.pdf" },
@@ -234,10 +246,11 @@
     const li = document.createElement("li");
     li.dataset.n = h.n;
     if (picked.has(h.n)) li.className = "on";
-    const row = document.createElement(editing ? "div" : "button");
+    const row = document.createElement("div");
     row.className = "row";
-    if (!editing) row.setAttribute("aria-pressed", picked.has(h.n));
-    let subs = h.sub ? '<span class="sub">' + h.sub.join(" &nbsp;•&nbsp; ") + '</span>' : "";
+    if (!editing) { row.setAttribute("role", "button"); row.tabIndex = 0; row.setAttribute("aria-pressed", picked.has(h.n)); }
+    let subs = h.links ? '<span class="sub">' + h.links.map(l =>
+      '<a href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + '</a>').join('<span class="dot">•</span>') + '</span>' : "";
     row.innerHTML =
       '<span class="grip" aria-label="Drag to reorder">' + GRIP + '</span>' +
       '<span class="box"></span>' +
@@ -248,7 +261,11 @@
       '<button class="open" type="button" aria-label="Open ' + h.t + '">Open</button>';
     const ob = row.querySelector(".open");
     if (ob) ob.onclick = e => { e.stopPropagation(); openViewer(h); };
-    if (!editing) row.onclick = () => { picked.has(h.n) ? picked.delete(h.n) : picked.add(h.n); render(); };
+    if (!editing) {
+      const toggle = () => { picked.has(h.n) ? picked.delete(h.n) : picked.add(h.n); render(); };
+      row.onclick = e => { if (e.target.closest("a")) return; toggle(); };
+      row.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+    }
     else {
       attachDrag(li, row.querySelector(".grip"), key);
       const [up, dn] = row.querySelectorAll(".mv button");
@@ -361,6 +378,12 @@
     document.getElementById("vNum").textContent = h.n;
     document.getElementById("vTitle").textContent = h.t;
     vPages.innerHTML = "";
+    if (h.links) {
+      const bar = document.createElement("div"); bar.className = "vlinks";
+      bar.innerHTML = '<span>Tap to open the page each QR code points to:</span>' + h.links.map(l =>
+        '<a href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + '</a>').join("");
+      vPages.appendChild(bar);
+    }
     (PAGES[h.n] || []).forEach((src, i) => {
       const img = document.createElement("img"); img.src = src; img.alt = h.t + ", page " + (i + 1);
       vPages.appendChild(img);
@@ -380,10 +403,7 @@
   render();
 </script>
 <script>
-  // Keep a copy on this device so the page opens without wifi.
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
+  if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(() => {}); }
 </script>
 </body>
 </html>
