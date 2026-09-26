@@ -190,6 +190,10 @@ a.website:hover { text-decoration: underline; }
 .login-btn { width:100%; padding:11px; background:var(--navy); color:white; border:none; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:600; margin-top:8px; transition:background .18s; }
 .login-btn:hover { background:var(--navy-light); }
 .login-error { color:var(--danger); font-size:.8rem; margin-top:10px; min-height:18px; }
+.login-alt { margin-top:18px; }
+.login-alt a { display:block; width:100%; box-sizing:border-box; padding:11px; border:1.5px solid var(--teal); border-radius:8px; color:var(--teal); background:white; text-decoration:none; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:600; transition:background .18s,color .18s; }
+.login-alt a:hover { background:var(--teal); color:white; }
+.login-alt .login-alt-note { font-size:.68rem; color:var(--text-light); margin-top:6px; }
 .login-footer { margin-top:22px; font-size:.68rem; color:var(--text-light); border-top:1px solid var(--border); padding-top:14px; }
 
 /* ── Admin page ── */
@@ -497,6 +501,10 @@ a.website:hover { text-decoration: underline; }
       <button type="submit" class="login-btn">Sign In</button>
       <div class="login-error" id="loginError"></div>
     </form>
+    <div class="login-alt">
+      <a href="handouts.html">Patient Education Handouts</a>
+      <div class="login-alt-note">No sign-in needed</div>
+    </div>
     <div class="login-footer">Northwest Eye Surgeons · Internal Use Only<br>Contact your administrator for access.</div>
   </div>
 </div>
